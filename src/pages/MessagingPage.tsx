@@ -20,51 +20,11 @@ interface MockMessage {
 }
 
 const mockThreads: MockThread[] = [
-  {
-    id: "t1",
-    name: "Tech Ventures LLC",
-    lastMessage: "The financials look strong. Can we schedule a call?",
-    time: "2m ago",
-    unread: 2,
-    online: true,
-    avatar: "T",
-  },
-  {
-    id: "t2",
-    name: "Green Holdings",
-    lastMessage: "I've attached the updated P&L statement.",
-    time: "1h ago",
-    unread: 0,
-    online: true,
-    avatar: "G",
-  },
-  {
-    id: "t3",
-    name: "Pulse Enterprises",
-    lastMessage: "Due diligence package is ready for review.",
-    time: "3h ago",
-    unread: 1,
-    online: false,
-    avatar: "P",
-  },
-  {
-    id: "t4",
-    name: "Core Fitness Group",
-    lastMessage: "We can negotiate on the lease terms.",
-    time: "1d ago",
-    unread: 0,
-    online: false,
-    avatar: "C",
-  },
-  {
-    id: "t5",
-    name: "Forge Creative Inc",
-    lastMessage: "Portfolio materials have been sent.",
-    time: "2d ago",
-    unread: 0,
-    online: false,
-    avatar: "F",
-  },
+  { id: "t1", name: "Tech Ventures LLC", lastMessage: "The financials look strong. Can we schedule a call?", time: "2m ago", unread: 2, online: true, avatar: "T" },
+  { id: "t2", name: "Green Holdings", lastMessage: "I've attached the updated P&L statement.", time: "1h ago", unread: 0, online: true, avatar: "G" },
+  { id: "t3", name: "Pulse Enterprises", lastMessage: "Due diligence package is ready for review.", time: "3h ago", unread: 1, online: false, avatar: "P" },
+  { id: "t4", name: "Core Fitness Group", lastMessage: "We can negotiate on the lease terms.", time: "1d ago", unread: 0, online: false, avatar: "C" },
+  { id: "t5", name: "Forge Creative Inc", lastMessage: "Portfolio materials have been sent.", time: "2d ago", unread: 0, online: false, avatar: "F" },
 ];
 
 const mockMessages: Record<string, MockMessage[]> = {
@@ -93,7 +53,6 @@ export default function MessagingPage() {
   const [messages, setMessages] = useState(mockMessages);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // On mobile: when a thread is selected, show chat; otherwise show thread list
   const isMobileChatView = selectedThread !== null;
 
   const handleSend = () => {
@@ -115,38 +74,32 @@ export default function MessagingPage() {
   const currentMessages = selectedThread ? messages[selectedThread.id] || [] : [];
 
   const filteredThreads = mockThreads.filter(
-    (t) =>
-      !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (t) => !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const handleSelectThread = (thread: MockThread) => {
-    setSelectedThread(thread);
-  };
-
-  const handleBackToList = () => {
-    setSelectedThread(null);
-  };
 
   return (
     <div className="flex h-full bg-dark-900">
-      {/* ─── Thread List ─── */}
-      {/* Desktop: always show. Mobile: only show when no thread selected */}
-      <div className={`${
-        isMobileChatView ? "hidden" : "flex"
-      } md:flex w-full md:w-80 bg-dark-800 md:border-r border-dark-500 flex-col shrink-0`}>
-        <div className="p-3 md:p-4 border-b border-dark-500">
+      {/* Thread List */}
+      <div
+        className={`${
+          isMobileChatView ? "hidden" : "flex"
+        } md:flex w-full md:w-80 bg-dark-800/80 md:border-r border-dark-500/50 flex-col shrink-0`}
+      >
+        <div className="p-3 md:p-4 border-b border-dark-500/50">
           <div className="flex items-center gap-2 mb-3">
-            <Send size={16} className="text-accent-500" />
+            <div className="w-7 h-7 rounded-lg bg-accent-900/40 border border-accent-700/30 flex items-center justify-center">
+              <Send size={12} className="text-accent-400" />
+            </div>
             <h2 className="font-mono text-sm text-light-text">MESSAGES</h2>
           </div>
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-200" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-300" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search conversations..."
-              className="w-full bg-dark-700 border border-dark-400 rounded pl-9 pr-3 py-2 text-xs font-mono text-light-text placeholder-dark-200 focus:outline-none focus:border-accent-600 transition-colors"
+              className="w-full bg-dark-700/60 border border-dark-400/50 rounded-xl pl-9 pr-3 py-2.5 text-xs font-mono text-light-text placeholder-dark-300 focus:outline-none focus:border-accent-600/60 transition-colors"
             />
           </div>
         </div>
@@ -155,20 +108,20 @@ export default function MessagingPage() {
           {filteredThreads.map((thread) => (
             <button
               key={thread.id}
-              onClick={() => handleSelectThread(thread)}
-              className={`w-full text-left p-3 md:p-4 border-b border-dark-600 transition-all duration-200 ${
+              onClick={() => setSelectedThread(thread)}
+              className={`w-full text-left p-3 md:p-4 border-b border-dark-600/30 transition-all duration-200 ${
                 selectedThread?.id === thread.id
-                  ? "bg-accent-900/30 border-l-2 border-l-accent-600"
-                  : "hover:bg-dark-700 border-l-2 border-l-transparent"
+                  ? "bg-accent-900/20 border-l-2 border-l-accent-500"
+                  : "hover:bg-dark-700/40 border-l-2 border-l-transparent"
               }`}
             >
               <div className="flex items-start gap-3">
                 <div className="relative">
                   <div
-                    className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center text-sm font-mono shrink-0 ${
+                    className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-sm font-mono shrink-0 ${
                       selectedThread?.id === thread.id
-                        ? "bg-accent-800 text-accent-300 border border-accent-700"
-                        : "bg-dark-500 text-dark-100 border border-dark-400"
+                        ? "bg-accent-800/40 text-accent-300 border border-accent-700/40"
+                        : "bg-dark-600/40 text-dark-100 border border-dark-500/30"
                     }`}
                   >
                     {thread.avatar}
@@ -182,11 +135,13 @@ export default function MessagingPage() {
                     <span className="text-xs md:text-sm font-medium text-light-text font-mono truncate">
                       {thread.name}
                     </span>
-                    <span className="text-[10px] text-dark-200 font-mono shrink-0 ml-2">
+                    <span className="text-[10px] text-dark-300 font-mono shrink-0 ml-2">
                       {thread.time}
                     </span>
                   </div>
-                  <p className="text-[11px] md:text-xs text-dark-100 font-mono truncate">{thread.lastMessage}</p>
+                  <p className="text-[11px] md:text-xs text-dark-100 font-mono truncate">
+                    {thread.lastMessage}
+                  </p>
                 </div>
                 {thread.unread > 0 && (
                   <span className="w-5 h-5 rounded-full bg-accent-600 text-white text-[10px] font-mono flex items-center justify-center shrink-0">
@@ -199,30 +154,30 @@ export default function MessagingPage() {
         </div>
       </div>
 
-      {/* ─── Chat Area ─── */}
-      {/* Desktop: always show. Mobile: only show when thread selected */}
+      {/* Chat Area */}
       {selectedThread ? (
-        <div className={`${
-          !isMobileChatView ? "hidden" : "flex"
-        } md:flex flex-1 flex-col`}>
+        <div
+          className={`${
+            !isMobileChatView ? "hidden" : "flex"
+          } md:flex flex-1 flex-col`}
+        >
           {/* Chat Header */}
-          <div className="h-12 md:h-14 bg-dark-800 border-b border-dark-500 flex items-center px-3 md:px-4 shrink-0">
-            {/* Mobile back button */}
+          <div className="h-12 md:h-14 bg-dark-800/80 border-b border-dark-500/50 flex items-center px-3 md:px-4 shrink-0 backdrop-blur-panel">
             <button
-              onClick={handleBackToList}
-              className="md:hidden text-dark-200 hover:text-light-text transition-colors p-1 mr-2"
+              onClick={() => setSelectedThread(null)}
+              className="md:hidden text-dark-200 hover:text-light-text transition-colors p-1 mr-2 rounded-lg"
             >
               <ChevronLeft size={20} />
             </button>
             <div className="flex items-center gap-3">
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-accent-800 text-accent-300 border border-accent-700 flex items-center justify-center text-xs font-mono">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-xl bg-accent-800/40 text-accent-300 border border-accent-700/40 flex items-center justify-center text-xs font-mono">
                 {selectedThread.avatar}
               </div>
               <div>
                 <p className="text-xs md:text-sm font-medium text-light-text font-mono">
                   {selectedThread.name}
                 </p>
-                <p className="text-[10px] text-dark-100 font-mono flex items-center gap-1">
+                <p className="text-[10px] text-dark-200 font-mono flex items-center gap-1">
                   {selectedThread.online ? (
                     <>
                       <Circle size={6} fill="#2d6a2d" className="text-accent-500" />
@@ -235,7 +190,7 @@ export default function MessagingPage() {
               </div>
             </div>
             <div className="flex-1" />
-            <button className="text-dark-200 hover:text-light-text transition-colors">
+            <button className="text-dark-200 hover:text-light-text transition-colors p-1 rounded-lg hover:bg-dark-600/30">
               <MoreVertical size={16} />
             </button>
           </div>
@@ -243,26 +198,28 @@ export default function MessagingPage() {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4">
             <div className="text-center">
-              <span className="text-[10px] text-dark-300 font-mono bg-dark-700 px-3 py-1 rounded-full">
+              <span className="text-[10px] text-dark-300 font-mono bg-dark-700/40 px-3 py-1 rounded-full">
                 Today
               </span>
             </div>
             {currentMessages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex ${msg.isMine ? "justify-end" : "justify-start"}`}
+                className={`flex ${msg.isMine ? "justify-end" : "justify-start"} animate-fadeIn`}
               >
                 <div
-                  className={`max-w-[80%] md:max-w-md px-3 md:px-4 py-2 md:py-2.5 rounded-lg ${
+                  className={`max-w-[80%] md:max-w-md px-4 py-2.5 md:py-3 rounded-2xl ${
                     msg.isMine
-                      ? "bg-accent-800/60 border border-accent-700/50 text-accent-100"
-                      : "bg-dark-700 border border-dark-400 text-light-text"
+                      ? "bg-accent-800/40 border border-accent-700/30 text-accent-100"
+                      : "bg-dark-700/60 border border-dark-500/40 text-light-text"
                   }`}
                 >
-                  <p className="text-[11px] md:text-xs font-mono leading-relaxed">{msg.content}</p>
+                  <p className="text-[11px] md:text-xs font-mono leading-relaxed">
+                    {msg.content}
+                  </p>
                   <p
-                    className={`text-[10px] font-mono mt-1 md:mt-1.5 ${
-                      msg.isMine ? "text-accent-400" : "text-dark-200"
+                    className={`text-[9px] font-mono mt-1.5 ${
+                      msg.isMine ? "text-accent-400/60" : "text-dark-300"
                     }`}
                   >
                     {msg.time}
@@ -272,10 +229,10 @@ export default function MessagingPage() {
             ))}
           </div>
 
-          {/* Message Input */}
-          <div className="p-3 md:p-4 bg-dark-800 border-t border-dark-500 safe-bottom">
+          {/* Input */}
+          <div className="p-3 md:p-4 bg-dark-800/80 border-t border-dark-500/50 safe-bottom backdrop-blur-panel">
             <div className="flex gap-2 md:gap-3 items-center">
-              <button className="text-dark-200 hover:text-light-text transition-colors shrink-0">
+              <button className="text-dark-300 hover:text-light-text transition-colors shrink-0 p-1 rounded-lg hover:bg-dark-600/30">
                 <Paperclip size={16} />
               </button>
               <input
@@ -284,12 +241,12 @@ export default function MessagingPage() {
                 onChange={(e) => setMessageInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 placeholder="Type a message..."
-                className="flex-1 bg-dark-700 border border-dark-400 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-xs font-mono text-light-text placeholder-dark-200 focus:outline-none focus:border-accent-600 transition-colors"
+                className="flex-1 bg-dark-700/60 border border-dark-400/50 rounded-xl px-4 py-2.5 text-xs font-mono text-light-text placeholder-dark-300 focus:outline-none focus:border-accent-600/60 transition-colors"
               />
               <button
                 onClick={handleSend}
                 disabled={!messageInput.trim()}
-                className="bg-accent-700 hover:bg-accent-600 text-white-text p-2 md:p-2.5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                className="bg-accent-700 hover:bg-accent-600 text-white p-2.5 rounded-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
               >
                 <Send size={14} />
               </button>
@@ -299,8 +256,11 @@ export default function MessagingPage() {
       ) : (
         <div className="hidden md:flex flex-1 items-center justify-center">
           <div className="text-center">
-            <User size={48} className="text-dark-400 mx-auto mb-4" />
+            <div className="w-14 h-14 rounded-2xl bg-dark-700/40 border border-dark-500/30 flex items-center justify-center mx-auto mb-4">
+              <User size={24} className="text-dark-400" />
+            </div>
             <p className="text-dark-200 font-mono text-sm">Select a conversation</p>
+            <p className="text-dark-300 font-mono text-xs mt-1">Choose from the sidebar</p>
           </div>
         </div>
       )}
