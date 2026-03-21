@@ -13,7 +13,7 @@ export default function Layout({ children, activeTab, onTabChange }: LayoutProps
 
   return (
     <div className="h-full w-full bg-dark-900 overflow-hidden">
-      {/* ═══ DESKTOP: sidebar + content side by side ═══ */}
+      {/* Desktop: sidebar + content */}
       <div className="hidden md:flex h-full">
         <div className="shrink-0">
           <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
@@ -23,36 +23,38 @@ export default function Layout({ children, activeTab, onTabChange }: LayoutProps
         </main>
       </div>
 
-      {/* ═══ MOBILE: fixed header, fixed bottom nav, content in between ═══ */}
+      {/* Mobile: header + content + bottom nav */}
       <div className="flex md:hidden flex-col h-full">
-        {/* Fixed mobile top header */}
-        <div className="h-12 bg-dark-800 border-b border-dark-500 flex items-center px-3 shrink-0 z-40">
+        {/* Mobile header */}
+        <div className="h-12 bg-dark-800/90 border-b border-dark-500/40 flex items-center px-3 shrink-0 z-40 backdrop-blur-panel">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="text-dark-100 hover:text-light-text p-2 -ml-1"
+            className="text-dark-100 hover:text-light-text p-2 -ml-1 rounded-lg"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 12h18M3 6h18M3 18h18" />
             </svg>
           </button>
-          <img
-            src="https://www.dropbox.com/scl/fi/3ounjvat1paeuma0ksbv8/ChatGPT_Image_Mar_19__2026__12_15_28_AM-removebg-preview.png?rlkey=dyz1ot9ozdai0q671z6vg9hyh&st=rzw374b1&raw=1"
-            alt="Archaleon"
-            className="w-6 h-6 opacity-90 ml-2"
-          />
-          <span className="font-mono text-xs text-light-text tracking-widest ml-2">ARCHALEON</span>
+          <div className="relative ml-2">
+            <img
+              src="https://www.dropbox.com/scl/fi/3ounjvat1paeuma0ksbv8/ChatGPT_Image_Mar_19__2026__12_15_28_AM-removebg-preview.png?rlkey=dyz1ot9ozdai0q671z6vg9hyh&st=rzw374b1&raw=1"
+              alt="Archaleon"
+              className="w-6 h-6 opacity-90"
+            />
+          </div>
+          <span className="font-mono text-xs text-light-text tracking-[0.15em] ml-2">
+            ARCHALEON
+          </span>
         </div>
 
-        {/* Page content — fills space between header and nav */}
         <main className="flex-1 overflow-hidden relative min-w-0 min-h-0">
           {children}
         </main>
 
-        {/* Fixed mobile bottom nav */}
         <MobileNav activeTab={activeTab} onTabChange={onTabChange} />
       </div>
 
-      {/* ═══ Mobile sidebar drawer overlay (works on both but only triggers on mobile) ═══ */}
+      {/* Mobile sidebar drawer */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div
