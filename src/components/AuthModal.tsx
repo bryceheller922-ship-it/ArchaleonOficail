@@ -158,10 +158,9 @@ export default function AuthModal({ onClose }: AuthModalProps) {
           )}
         </div>
 
-        {/* Demo hint */}
         <div className="mt-4 p-3 bg-[#1a241a] rounded-lg border border-[#2a3a2a]">
           <p className="text-xs text-gray-500 text-center">
-            <span className="text-[#4ade80]">Demo:</span> Use any email & password to explore the platform
+            Create an account to list businesses and message owners
           </p>
         </div>
       </div>

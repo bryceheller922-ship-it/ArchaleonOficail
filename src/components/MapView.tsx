@@ -101,6 +101,7 @@ export default function MapView({ businesses, selectedBusiness, onSelectBusiness
     markersRef.current.clear();
 
     businesses.forEach(business => {
+      if (!business.lat || !business.lng) return;
       const color = sectorColors[business.sector] || "#4ade80";
       const isSelected = selectedBusiness?.id === business.id;
 
@@ -163,8 +164,10 @@ export default function MapView({ businesses, selectedBusiness, onSelectBusiness
 
   useEffect(() => {
     if (!mapLoaded || !mapInstanceRef.current || !selectedBusiness) return;
-    mapInstanceRef.current.panTo({ lat: selectedBusiness.lat, lng: selectedBusiness.lng });
-    mapInstanceRef.current.setZoom(10);
+    if (selectedBusiness.lat && selectedBusiness.lng) {
+      mapInstanceRef.current.panTo({ lat: selectedBusiness.lat, lng: selectedBusiness.lng });
+      mapInstanceRef.current.setZoom(10);
+    }
   }, [selectedBusiness, mapLoaded]);
 
   if (mapError) {
@@ -178,27 +181,29 @@ export default function MapView({ businesses, selectedBusiness, onSelectBusiness
           <p className="text-gray-500 text-sm">Google Maps will display here with your API key</p>
         </div>
         {/* Fallback visual map */}
-        <div className="relative w-full max-w-lg h-64 mx-4 bg-[#141a14] rounded-xl border border-[#1e2e1e] overflow-hidden">
-          <div className="absolute inset-0 opacity-10" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%234ade80' fill-opacity='0.4'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`
-          }} />
-          {businesses.map(b => {
-            const x = ((b.lng + 125) / 65) * 100;
-            const y = ((50 - b.lat) / 30) * 100;
-            return (
-              <button
-                key={b.id}
-                onClick={() => onSelectBusiness(b)}
-                className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-transform hover:scale-125"
-                style={{ left: `${x}%`, top: `${y}%` }}
-              >
-                <div className={`w-3 h-3 rounded-full border-2 ${
-                  selectedBusiness?.id === b.id ? "border-[#4ade80] bg-[#4ade80] scale-150" : "border-[#4ade80] bg-[#2d5a27]"
-                }`} />
-              </button>
-            );
-          })}
-        </div>
+        {businesses.length > 0 && (
+          <div className="relative w-full max-w-lg h-64 mx-4 bg-[#141a14] rounded-xl border border-[#1e2e1e] overflow-hidden">
+            <div className="absolute inset-0 opacity-10" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%234ade80' fill-opacity='0.4'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`
+            }} />
+            {businesses.filter(b => b.lat && b.lng).map(b => {
+              const x = ((b.lng + 125) / 65) * 100;
+              const y = ((50 - b.lat) / 30) * 100;
+              return (
+                <button
+                  key={b.id}
+                  onClick={() => onSelectBusiness(b)}
+                  className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-transform hover:scale-125"
+                  style={{ left: `${x}%`, top: `${y}%` }}
+                >
+                  <div className={`w-3 h-3 rounded-full border-2 ${
+                    selectedBusiness?.id === b.id ? "border-[#4ade80] bg-[#4ade80] scale-150" : "border-[#4ade80] bg-[#2d5a27]"
+                  }`} />
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }

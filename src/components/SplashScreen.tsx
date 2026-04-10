@@ -6,16 +6,16 @@ interface SplashScreenProps {
 }
 
 const stats = [
-  { label: "Active Listings", value: "$1.4B+", sub: "in deal flow" },
-  { label: "Verified Investors", value: "2,400+", sub: "institutional & family office" },
-  { label: "Avg. Time to LOI", value: "47 days", sub: "vs. 180 industry avg" },
+  { label: "Business Listings", value: "Live", sub: "browse real deals" },
+  { label: "Verified Investors", value: "Growing", sub: "institutional & family office" },
+  { label: "Direct Messaging", value: "Instant", sub: "connect with owners" },
 ];
 
 const features = [
   {
     icon: <Building2 size={20} />,
     title: "Business Marketplace",
-    desc: "Browse 1,400+ verified business listings with full financial profiles, maps, and deal terms"
+    desc: "Browse verified business listings with full financial profiles, maps, and deal terms"
   },
   {
     icon: <Network size={20} />,
