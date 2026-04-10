@@ -3,6 +3,7 @@ import { Building2, TrendingUp, Network, Shield, ChevronRight, BarChart3, Globe 
 
 interface SplashScreenProps {
   onEnter: () => void;
+  onListBusiness?: () => void;
 }
 
 const stats = [
@@ -34,7 +35,7 @@ const features = [
   },
 ];
 
-export default function SplashScreen({ onEnter }: SplashScreenProps) {
+export default function SplashScreen({ onEnter, onListBusiness }: SplashScreenProps) {
   const [visible, setVisible] = useState(false);
   const [lineCount, setLineCount] = useState(0);
 
@@ -127,7 +128,7 @@ export default function SplashScreen({ onEnter }: SplashScreenProps) {
             <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </button>
           <button
-            onClick={onEnter}
+            onClick={onListBusiness || onEnter}
             className="flex items-center gap-2 text-gray-400 hover:text-gray-200 font-medium px-6 py-4 transition-colors"
           >
             List Your Business <ChevronRight size={16} />

@@ -80,22 +80,27 @@ export default function ListingsView({ searchQuery, navigateToConversation }: Li
       return;
     }
     if (!business.createdBy) {
-      alert("Cannot message this listing owner.");
+      alert("This listing doesn't have an owner to message yet.");
       return;
     }
-    const myInitials = userProfile.displayName
-      .split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-    const convoId = await getOrCreateConversation(
-      currentUser.uid,
-      userProfile.displayName,
-      myInitials,
-      business.createdBy,
-      business.ownerName,
-      business.ownerAvatar,
-      business.name
-    );
-    setSelectedBusiness(null);
-    navigateToConversation(convoId);
+    try {
+      const myInitials = userProfile.displayName
+        .split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+      const convoId = await getOrCreateConversation(
+        currentUser.uid,
+        userProfile.displayName,
+        myInitials,
+        business.createdBy,
+        business.ownerName,
+        business.ownerAvatar,
+        business.name
+      );
+      setSelectedBusiness(null);
+      navigateToConversation(convoId);
+    } catch (err) {
+      console.error("Failed to create conversation:", err);
+      alert("Could not start conversation. Please try again.");
+    }
   }
 
   return (

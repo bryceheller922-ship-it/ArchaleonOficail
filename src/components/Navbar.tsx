@@ -139,13 +139,13 @@ export default function Navbar({ activeTab, searchQuery, setSearchQuery, totalUn
                     </div>
                     <div className="p-1">
                       <button
-                        onClick={() => { alert("Profile settings coming soon!"); setShowUserMenu(false); }}
+                        onClick={() => { navigate("/profile"); setShowUserMenu(false); }}
                         className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-[#1a241a] rounded-lg transition-colors"
                       >
                         <User size={14} /> Profile
                       </button>
                       <button
-                        onClick={() => { alert("Settings coming soon!"); setShowUserMenu(false); }}
+                        onClick={() => { navigate("/profile"); setShowUserMenu(false); }}
                         className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-[#1a241a] rounded-lg transition-colors"
                       >
                         <Settings size={14} /> Settings

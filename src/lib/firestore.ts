@@ -1,10 +1,23 @@
 import {
   collection, doc, addDoc, getDocs, onSnapshot,
-  query, where, orderBy, updateDoc, serverTimestamp
+  query, where, orderBy, updateDoc, serverTimestamp,
+  setDoc, deleteDoc
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "./firebase";
 import type { Business, Conversation, Message } from "./mockData";
+
+// --------------- Timeout helper ---------------
+// Firestore can hang if rules block writes. This ensures we never wait forever.
+
+function withTimeout<T>(promise: Promise<T>, ms = 8000, fallback?: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve, reject) =>
+      setTimeout(() => (fallback !== undefined ? resolve(fallback) : reject(new Error("Operation timed out"))), ms)
+    ),
+  ]);
+}
 
 // --------------- Geocoding ---------------
 
@@ -40,9 +53,13 @@ export async function geocodeAddress(
 export async function uploadImages(files: File[], listingId: string): Promise<string[]> {
   const urls: string[] = [];
   for (const file of files) {
-    const storageRef = ref(storage, `listings/${listingId}/${Date.now()}_${file.name}`);
-    await uploadBytes(storageRef, file);
-    urls.push(await getDownloadURL(storageRef));
+    try {
+      const storageRef = ref(storage, `listings/${listingId}/${Date.now()}_${file.name}`);
+      await withTimeout(uploadBytes(storageRef, file));
+      urls.push(await withTimeout(getDownloadURL(storageRef)));
+    } catch {
+      console.warn("Failed to upload image:", file.name);
+    }
   }
   return urls;
 }
@@ -53,15 +70,23 @@ export async function createListing(
   data: Omit<Business, "id">,
   images: File[]
 ): Promise<string> {
-  const docRef = await addDoc(collection(db, "listings"), {
-    ...data,
-    imageUrls: [],
-    createdAt: serverTimestamp(),
-  });
+  const docRef = await withTimeout(
+    addDoc(collection(db, "listings"), {
+      ...data,
+      imageUrls: [],
+      createdAt: serverTimestamp(),
+    })
+  );
 
   if (images.length > 0) {
-    const imageUrls = await uploadImages(images, docRef.id);
-    await updateDoc(docRef, { imageUrls });
+    try {
+      const imageUrls = await uploadImages(images, docRef.id);
+      if (imageUrls.length > 0) {
+        await withTimeout(updateDoc(docRef, { imageUrls }));
+      }
+    } catch {
+      console.warn("Image upload failed, listing created without images");
+    }
   }
 
   return docRef.id;
@@ -114,26 +139,32 @@ export async function getOrCreateConversation(
   businessName?: string
 ): Promise<string> {
   // look for existing conversation between these two users
-  const q = query(
-    collection(db, "conversations"),
-    where("participants", "array-contains", myId)
-  );
-  const snap = await getDocs(q);
-  for (const d of snap.docs) {
-    const data = d.data();
-    if ((data.participants as string[]).includes(otherId)) return d.id;
+  try {
+    const q = query(
+      collection(db, "conversations"),
+      where("participants", "array-contains", myId)
+    );
+    const snap = await withTimeout(getDocs(q));
+    for (const d of snap.docs) {
+      const data = d.data();
+      if ((data.participants as string[]).includes(otherId)) return d.id;
+    }
+  } catch {
+    // If query fails/times out, just create a new one
   }
 
   // create new
-  const docRef = await addDoc(collection(db, "conversations"), {
-    participants: [myId, otherId],
-    participantNames: [myName, otherName],
-    participantAvatars: [myAvatar, otherAvatar],
-    lastMessage: "",
-    lastMessageTime: new Date().toISOString(),
-    unread: 0,
-    businessName: businessName || "",
-  });
+  const docRef = await withTimeout(
+    addDoc(collection(db, "conversations"), {
+      participants: [myId, otherId],
+      participantNames: [myName, otherName],
+      participantAvatars: [myAvatar, otherAvatar],
+      lastMessage: "",
+      lastMessageTime: new Date().toISOString(),
+      unread: 0,
+      businessName: businessName || "",
+    })
+  );
   return docRef.id;
 }
 
@@ -169,18 +200,21 @@ export async function sendMessageToFirestore(
   senderAvatar: string,
   text: string
 ) {
-  await addDoc(collection(db, "conversations", conversationId, "messages"), {
-    senderId,
-    senderName,
-    senderAvatar,
-    text,
-    timestamp: new Date().toISOString(),
-    read: false,
-  });
-  await updateDoc(doc(db, "conversations", conversationId), {
+  await withTimeout(
+    addDoc(collection(db, "conversations", conversationId, "messages"), {
+      senderId,
+      senderName,
+      senderAvatar,
+      text,
+      timestamp: new Date().toISOString(),
+      read: false,
+    })
+  );
+  // Update conversation last message (fire-and-forget)
+  updateDoc(doc(db, "conversations", conversationId), {
     lastMessage: text,
     lastMessageTime: new Date().toISOString(),
-  });
+  }).catch(() => {});
 }
 
 // --------------- Network / Users ---------------
@@ -200,3 +234,53 @@ export function subscribeToUsers(
     () => callback([])
   );
 }
+
+// --------------- Profile ---------------
+
+export async function updateUserProfile(uid: string, data: Record<string, unknown>) {
+  try {
+    await withTimeout(setDoc(doc(db, "users", uid), data, { merge: true }));
+  } catch {
+    console.warn("Profile update may have timed out");
+  }
+}
+
+// --------------- Portfolio Holdings ---------------
+
+export interface Holding {
+  id: string;
+  name: string;
+  sector: string;
+  acquired: string;
+  costBasis: number;
+  currentValue: number;
+  notes: string;
+}
+
+export function subscribeToHoldings(
+  userId: string,
+  callback: (holdings: Holding[]) => void
+) {
+  return onSnapshot(
+    collection(db, "users", userId, "holdings"),
+    (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Holding)));
+    },
+    () => callback([])
+  );
+}
+
+export async function addHolding(userId: string, data: Omit<Holding, "id">) {
+  await withTimeout(addDoc(collection(db, "users", userId, "holdings"), data));
+}
+
+export async function deleteHolding(userId: string, holdingId: string) {
+  await withTimeout(deleteDoc(doc(db, "users", userId, "holdings", holdingId)));
+}
+
+export async function updateBudget(userId: string, budget: number) {
+  try {
+    await withTimeout(setDoc(doc(db, "users", userId), { budget }, { merge: true }));
+  } catch {}
+}
+

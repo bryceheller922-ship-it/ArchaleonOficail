@@ -8,6 +8,7 @@ import NetworkView from "./components/NetworkView";
 import PortfolioView from "./components/PortfolioView";
 import SplashScreen from "./components/SplashScreen";
 import CreateListingPage from "./components/CreateListingPage";
+import ProfilePage from "./components/ProfilePage";
 import { subscribeToConversations } from "./lib/firestore";
 
 // Search context so ListingsView can access the navbar search
@@ -69,50 +70,35 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<SplashScreen onEnter={() => navigate("/listings")} />} />
-
-      <Route path="/listings" element={
-        <AppLayout>
-          <ListingsPage navigateToConversation={navigateToConversation} />
-        </AppLayout>
+      {/* Onboarding / Landing */}
+      <Route path="/" element={
+        <SplashScreen
+          onEnter={() => navigate("/listings")}
+          onListBusiness={() => navigate("/create-listing")}
+        />
       } />
 
-      <Route path="/messages" element={
-        <AppLayout>
-          <MessagesPage />
-        </AppLayout>
-      } />
+      {/* Main pages */}
+      <Route path="/listings" element={<AppLayout><ListingsPage navigateToConversation={navigateToConversation} /></AppLayout>} />
+      <Route path="/messages" element={<AppLayout><MessagesPage /></AppLayout>} />
+      <Route path="/network" element={<AppLayout><NetworkView navigateToConversation={navigateToConversation} /></AppLayout>} />
+      <Route path="/portfolio" element={<AppLayout><PortfolioView /></AppLayout>} />
 
-      <Route path="/network" element={
-        <AppLayout>
-          <NetworkView navigateToConversation={navigateToConversation} />
-        </AppLayout>
-      } />
+      {/* Dedicated pages */}
+      <Route path="/create-listing" element={<AppLayout><CreateListingPage /></AppLayout>} />
+      <Route path="/profile" element={<AppLayout><ProfilePage /></AppLayout>} />
 
-      <Route path="/portfolio" element={
-        <AppLayout>
-          <PortfolioView />
-        </AppLayout>
-      } />
-
-      <Route path="/create-listing" element={
-        <AppLayout>
-          <CreateListingPage />
-        </AppLayout>
-      } />
-
+      {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
-/** Reads searchQuery from context */
 function ListingsPage({ navigateToConversation }: { navigateToConversation: (id: string) => void }) {
   const { searchQuery } = useSearch();
   return <ListingsView searchQuery={searchQuery} navigateToConversation={navigateToConversation} />;
 }
 
-/** Reads convoId from location state */
 function MessagesPage() {
   const location = useLocation();
   const state = location.state as { convoId?: string } | null;
