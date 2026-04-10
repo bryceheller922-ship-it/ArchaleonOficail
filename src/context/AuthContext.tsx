@@ -6,8 +6,6 @@ import {
   onAuthStateChanged,
   User,
   updateProfile,
-  setPersistence,
-  browserLocalPersistence
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
@@ -38,42 +36,40 @@ export function useAuth() {
   return ctx;
 }
 
+// Helper: race a promise against a timeout
+function raceTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Set persistence to local (survives browser close)
-  useEffect(() => {
-    setPersistence(auth, browserLocalPersistence).catch(() => {});
-  }, []);
-
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        // Try to load full profile from Firestore
+        // Build fallback profile from Firebase Auth data
+        const fallback: UserProfile = {
+          uid: user.uid,
+          email: user.email || "",
+          displayName: user.displayName || "User",
+        };
+
+        // Try to load Firestore profile, but don't hang
         try {
-          const docSnap = await getDoc(doc(db, "users", user.uid));
-          if (docSnap.exists()) {
+          const docSnap = await raceTimeout(getDoc(doc(db, "users", user.uid)), 4000);
+          if (docSnap && docSnap.exists()) {
             setUserProfile(docSnap.data() as UserProfile);
           } else {
-            // Firestore profile doesn't exist yet – use Auth data
-            const fallback: UserProfile = {
-              uid: user.uid,
-              email: user.email || "",
-              displayName: user.displayName || "User",
-            };
             setUserProfile(fallback);
-            // Try to create the Firestore profile
-            try { await setDoc(doc(db, "users", user.uid), fallback); } catch {}
           }
         } catch {
-          setUserProfile({
-            uid: user.uid,
-            email: user.email || "",
-            displayName: user.displayName || "User",
-          });
+          setUserProfile(fallback);
         }
       } else {
         setUserProfile(null);
@@ -94,11 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!email.trim()) throw new Error("Email is required.");
     if (password.length < 6) throw new Error("Password must be at least 6 characters.");
 
+    // 1. Create Firebase Auth account
     const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-    // Update Firebase Auth displayName
-    await updateProfile(cred.user, { displayName: name });
+    // 2. Update display name on the auth user (fire-and-forget)
+    updateProfile(cred.user, { displayName: name }).catch(() => {});
 
+    // 3. Build profile
     const profile: UserProfile = {
       uid: cred.user.uid,
       email,
@@ -107,16 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       company: company || undefined,
     };
 
-    // Write profile to Firestore (don't silently swallow)
-    try {
-      await setDoc(doc(db, "users", cred.user.uid), profile);
-    } catch (err) {
-      console.error("Failed to save profile to Firestore:", err);
-      // Auth account was created, profile just didn't persist to Firestore
-    }
-
-    // Set profile immediately so UI updates
+    // 4. Set profile in state IMMEDIATELY so UI updates
     setUserProfile(profile);
+
+    // 5. Try to write to Firestore (fire-and-forget — don't block the UI)
+    setDoc(doc(db, "users", cred.user.uid), profile).catch((err) => {
+      console.warn("Firestore profile write failed:", err);
+    });
   }
 
   async function logout() {

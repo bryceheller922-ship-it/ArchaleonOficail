@@ -40,22 +40,21 @@ export default function AuthModal({ onClose }: AuthModalProps) {
         onClose();
       } else {
         await register(email, password, name, title, company);
+        setLoading(false);
         setSuccess(true);
-        // Close after showing success briefly
-        setTimeout(() => onClose(), 1500);
+        setTimeout(() => onClose(), 1800);
+        return; // skip finally
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Authentication failed";
-      // Clean up Firebase error messages
       const cleaned = msg
         .replace("Firebase: ", "")
         .replace(/\(auth\/.*\)\.?/, "")
         .replace("Error ", "")
         .trim();
       setError(cleaned || "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }
 
   // Success state after registration

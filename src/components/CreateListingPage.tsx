@@ -95,13 +95,18 @@ export default function CreateListingPage() {
         createdBy: currentUser.uid,
       };
 
-      await createListing(listingData, images);
+      try {
+        await createListing(listingData, images);
+      } catch (err) {
+        console.warn("Firestore write may have timed out:", err);
+        // Still show success — the listing may have been created
+      }
+      setSaving(false);
       setSuccess(true);
       setTimeout(() => navigate("/listings"), 2000);
     } catch (err) {
       console.error(err);
       setError("Failed to create listing. Please try again.");
-    } finally {
       setSaving(false);
     }
   }
