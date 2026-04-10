@@ -1,14 +1,13 @@
 import {
   collection, doc, addDoc, getDocs, onSnapshot,
-  query, where, orderBy, updateDoc, serverTimestamp,
+  query, where, orderBy, updateDoc,
   setDoc, deleteDoc
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "./firebase";
+import { db } from "./firebase";
+import { supabase } from "./supabase";
 import type { Business, Conversation, Message } from "./mockData";
 
 // --------------- Timeout helper ---------------
-// Firestore can hang if rules block writes. This ensures we never wait forever.
 
 function withTimeout<T>(promise: Promise<T>, ms = 8000, fallback?: T): Promise<T> {
   return Promise.race([
@@ -36,11 +35,7 @@ export async function geocodeAddress(
           if (c.types.includes("administrative_area_level_1")) state = c.short_name;
           if (c.types.includes("country")) country = c.long_name;
         }
-        resolve({
-          lat: r.geometry.location.lat(),
-          lng: r.geometry.location.lng(),
-          city, state, country,
-        });
+        resolve({ lat: r.geometry.location.lat(), lng: r.geometry.location.lng(), city, state, country });
       } else {
         resolve(null);
       }
@@ -48,62 +43,158 @@ export async function geocodeAddress(
   });
 }
 
-// --------------- Image Upload ---------------
+// =============================================
+// LISTINGS — stored in Supabase (persistent, public)
+// =============================================
 
-export async function uploadImages(files: File[], listingId: string): Promise<string[]> {
+// Upload images to Supabase Storage
+async function uploadImagesToSupabase(files: File[], listingId: string): Promise<string[]> {
   const urls: string[] = [];
   for (const file of files) {
-    try {
-      const storageRef = ref(storage, `listings/${listingId}/${Date.now()}_${file.name}`);
-      await withTimeout(uploadBytes(storageRef, file));
-      urls.push(await withTimeout(getDownloadURL(storageRef)));
-    } catch {
-      console.warn("Failed to upload image:", file.name);
+    const path = `listings/${listingId}/${Date.now()}_${file.name}`;
+    const { error } = await supabase.storage.from("listing-images").upload(path, file);
+    if (!error) {
+      const { data } = supabase.storage.from("listing-images").getPublicUrl(path);
+      if (data?.publicUrl) urls.push(data.publicUrl);
+    } else {
+      console.warn("Image upload failed:", error.message);
     }
   }
   return urls;
 }
 
-// --------------- Listings ---------------
-
 export async function createListing(
   data: Omit<Business, "id">,
   images: File[]
 ): Promise<string> {
-  const docRef = await withTimeout(
-    addDoc(collection(db, "listings"), {
-      ...data,
-      imageUrls: [],
-      createdAt: serverTimestamp(),
-    })
-  );
+  // Insert listing into Supabase
+  const row = {
+    name: data.name,
+    industry: data.industry,
+    sector: data.sector,
+    description: data.description,
+    revenue: data.revenue,
+    ebitda: data.ebitda,
+    valuation: data.valuation,
+    employees: data.employees,
+    founded: data.founded,
+    location: data.location,
+    city: data.city,
+    state: data.state,
+    country: data.country,
+    lat: data.lat,
+    lng: data.lng,
+    logo: data.logo,
+    tags: data.tags,
+    status: data.status,
+    asking_price: data.askingPrice,
+    gross_margin: data.grossMargin,
+    yoy_growth: data.yoyGrowth,
+    owner_name: data.ownerName,
+    owner_title: data.ownerTitle,
+    owner_avatar: data.ownerAvatar,
+    listed_at: data.listedAt,
+    website: data.website,
+    deal_type: data.dealType,
+    image_urls: [] as string[],
+    created_by: data.createdBy || "",
+  };
 
+  const { data: inserted, error } = await supabase
+    .from("listings")
+    .insert(row)
+    .select("id")
+    .single();
+
+  if (error) throw new Error(`Failed to create listing: ${error.message}`);
+  const listingId = inserted.id;
+
+  // Upload images
   if (images.length > 0) {
-    try {
-      const imageUrls = await uploadImages(images, docRef.id);
-      if (imageUrls.length > 0) {
-        await withTimeout(updateDoc(docRef, { imageUrls }));
-      }
-    } catch {
-      console.warn("Image upload failed, listing created without images");
+    const imageUrls = await uploadImagesToSupabase(images, listingId);
+    if (imageUrls.length > 0) {
+      await supabase.from("listings").update({ image_urls: imageUrls }).eq("id", listingId);
     }
   }
 
-  return docRef.id;
+  return listingId;
 }
 
+// Map Supabase row to Business interface
+function rowToBusiness(row: Record<string, unknown>): Business {
+  return {
+    id: String(row.id),
+    name: String(row.name || ""),
+    industry: String(row.industry || ""),
+    sector: String(row.sector || ""),
+    description: String(row.description || ""),
+    revenue: String(row.revenue || "N/A"),
+    ebitda: String(row.ebitda || "N/A"),
+    valuation: String(row.valuation || "N/A"),
+    employees: Number(row.employees) || 0,
+    founded: Number(row.founded) || 0,
+    location: String(row.location || ""),
+    city: String(row.city || ""),
+    state: String(row.state || ""),
+    country: String(row.country || ""),
+    lat: Number(row.lat) || 0,
+    lng: Number(row.lng) || 0,
+    logo: String(row.logo || ""),
+    tags: (row.tags as string[]) || [],
+    status: (row.status as Business["status"]) || "Active",
+    askingPrice: String(row.asking_price || "N/A"),
+    grossMargin: String(row.gross_margin || "N/A"),
+    yoyGrowth: String(row.yoy_growth || "N/A"),
+    ownerName: String(row.owner_name || ""),
+    ownerTitle: String(row.owner_title || ""),
+    ownerAvatar: String(row.owner_avatar || ""),
+    listedAt: String(row.listed_at || ""),
+    website: String(row.website || ""),
+    dealType: String(row.deal_type || ""),
+    imageUrls: (row.image_urls as string[]) || [],
+    createdBy: String(row.created_by || ""),
+  };
+}
+
+// Subscribe to listings via Supabase Realtime + initial fetch
 export function subscribeToListings(callback: (listings: Business[]) => void) {
-  const q = query(collection(db, "listings"), orderBy("createdAt", "desc"));
-  return onSnapshot(
-    q,
-    (snap) => {
-      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Business)));
-    },
-    () => callback([])
-  );
+  // Initial fetch
+  supabase
+    .from("listings")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .then(({ data, error }) => {
+      if (!error && data) {
+        callback(data.map(rowToBusiness));
+      } else {
+        callback([]);
+      }
+    });
+
+  // Realtime subscription for live updates
+  const channel = supabase
+    .channel("listings-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "listings" }, () => {
+      // Re-fetch all on any change
+      supabase
+        .from("listings")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .then(({ data }) => {
+          if (data) callback(data.map(rowToBusiness));
+        });
+    })
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
-// --------------- Conversations ---------------
+// =============================================
+// CONVERSATIONS — Firebase (per-user, real-time)
+// =============================================
 
 export function subscribeToConversations(
   userId: string,
@@ -118,11 +209,7 @@ export function subscribeToConversations(
     (snap) => {
       const convos = snap.docs
         .map((d) => ({ id: d.id, ...d.data() } as Conversation))
-        .sort(
-          (a, b) =>
-            new Date(b.lastMessageTime).getTime() -
-            new Date(a.lastMessageTime).getTime()
-        );
+        .sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime());
       callback(convos);
     },
     () => callback([])
@@ -130,30 +217,19 @@ export function subscribeToConversations(
 }
 
 export async function getOrCreateConversation(
-  myId: string,
-  myName: string,
-  myAvatar: string,
-  otherId: string,
-  otherName: string,
-  otherAvatar: string,
+  myId: string, myName: string, myAvatar: string,
+  otherId: string, otherName: string, otherAvatar: string,
   businessName?: string
 ): Promise<string> {
-  // look for existing conversation between these two users
   try {
-    const q = query(
-      collection(db, "conversations"),
-      where("participants", "array-contains", myId)
-    );
+    const q = query(collection(db, "conversations"), where("participants", "array-contains", myId));
     const snap = await withTimeout(getDocs(q));
     for (const d of snap.docs) {
       const data = d.data();
       if ((data.participants as string[]).includes(otherId)) return d.id;
     }
-  } catch {
-    // If query fails/times out, just create a new one
-  }
+  } catch {}
 
-  // create new
   const docRef = await withTimeout(
     addDoc(collection(db, "conversations"), {
       participants: [myId, otherId],
@@ -168,7 +244,9 @@ export async function getOrCreateConversation(
   return docRef.id;
 }
 
-// --------------- Messages ---------------
+// =============================================
+// MESSAGES — Firebase
+// =============================================
 
 export function subscribeToMessages(
   conversationId: string,
@@ -181,43 +259,31 @@ export function subscribeToMessages(
   return onSnapshot(
     q,
     (snap) => {
-      callback(
-        snap.docs.map((d) => ({
-          id: d.id,
-          conversationId,
-          ...d.data(),
-        } as Message))
-      );
+      callback(snap.docs.map((d) => ({ id: d.id, conversationId, ...d.data() } as Message)));
     },
     () => callback([])
   );
 }
 
 export async function sendMessageToFirestore(
-  conversationId: string,
-  senderId: string,
-  senderName: string,
-  senderAvatar: string,
-  text: string
+  conversationId: string, senderId: string, senderName: string, senderAvatar: string, text: string
 ) {
   await withTimeout(
     addDoc(collection(db, "conversations", conversationId, "messages"), {
-      senderId,
-      senderName,
-      senderAvatar,
-      text,
+      senderId, senderName, senderAvatar, text,
       timestamp: new Date().toISOString(),
       read: false,
     })
   );
-  // Update conversation last message (fire-and-forget)
   updateDoc(doc(db, "conversations", conversationId), {
     lastMessage: text,
     lastMessageTime: new Date().toISOString(),
   }).catch(() => {});
 }
 
-// --------------- Network / Users ---------------
+// =============================================
+// NETWORK / USERS — Firebase
+// =============================================
 
 export function subscribeToUsers(
   currentUserId: string,
@@ -226,16 +292,17 @@ export function subscribeToUsers(
   return onSnapshot(
     collection(db, "users"),
     (snap) => {
-      const users = snap.docs
+      callback(snap.docs
         .filter((d) => d.id !== currentUserId)
-        .map((d) => ({ id: d.id, ...d.data() } as { id: string; displayName: string; email: string; title?: string; company?: string }));
-      callback(users);
+        .map((d) => ({ id: d.id, ...d.data() } as { id: string; displayName: string; email: string; title?: string; company?: string })));
     },
     () => callback([])
   );
 }
 
-// --------------- Profile ---------------
+// =============================================
+// PROFILE — Firebase
+// =============================================
 
 export async function updateUserProfile(uid: string, data: Record<string, unknown>) {
   try {
@@ -245,7 +312,9 @@ export async function updateUserProfile(uid: string, data: Record<string, unknow
   }
 }
 
-// --------------- Portfolio Holdings ---------------
+// =============================================
+// PORTFOLIO HOLDINGS — Firebase (per-user)
+// =============================================
 
 export interface Holding {
   id: string;
@@ -257,15 +326,10 @@ export interface Holding {
   notes: string;
 }
 
-export function subscribeToHoldings(
-  userId: string,
-  callback: (holdings: Holding[]) => void
-) {
+export function subscribeToHoldings(userId: string, callback: (holdings: Holding[]) => void) {
   return onSnapshot(
     collection(db, "users", userId, "holdings"),
-    (snap) => {
-      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Holding)));
-    },
+    (snap) => { callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Holding))); },
     () => callback([])
   );
 }
@@ -279,8 +343,5 @@ export async function deleteHolding(userId: string, holdingId: string) {
 }
 
 export async function updateBudget(userId: string, budget: number) {
-  try {
-    await withTimeout(setDoc(doc(db, "users", userId), { budget }, { merge: true }));
-  } catch {}
+  try { await withTimeout(setDoc(doc(db, "users", userId), { budget }, { merge: true })); } catch {}
 }
-

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",
+    "@supabase/supabase-js": "^2.103.0",
     "@types/google.maps": "^3.58.1",
     "agora-react-uikit": "^1.2.0",
     "clsx": "2.1.1",
