@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Lock viewport */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
@@ -44,16 +52,9 @@
   overflow: hidden;
 }
 
-/* Smooth transitions */
-* {
-  transition-property: background-color, border-color, color, opacity, box-shadow;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
 /* Palantir-style grid background */
 .grid-bg {
-  background-image: 
+  background-image:
     linear-gradient(rgba(74, 222, 128, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(74, 222, 128, 0.03) 1px, transparent 1px);
   background-size: 40px 40px;
@@ -77,9 +78,4 @@ body {
 select option {
   background: #141a14;
   color: white;
-}
-
-/* Prevent layout shift from scrollbar */
-html {
-  overflow-y: scroll;
 }

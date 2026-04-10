@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Building2, Search, Bell, ChevronDown, LogOut, User, Settings, MessageSquare, Network, LayoutGrid, Menu, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "./AuthModal";
@@ -7,13 +8,20 @@ type Tab = "listings" | "messages" | "network" | "portfolio";
 
 interface NavbarProps {
   activeTab: Tab;
-  setActiveTab: (tab: Tab) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   totalUnread: number;
 }
 
-export default function Navbar({ activeTab, setActiveTab, searchQuery, setSearchQuery, totalUnread }: NavbarProps) {
+const tabRoutes: Record<Tab, string> = {
+  listings: "/listings",
+  messages: "/messages",
+  network: "/network",
+  portfolio: "/portfolio",
+};
+
+export default function Navbar({ activeTab, searchQuery, setSearchQuery, totalUnread }: NavbarProps) {
+  const navigate = useNavigate();
   const { currentUser, userProfile, logout } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -31,12 +39,16 @@ export default function Navbar({ activeTab, setActiveTab, searchQuery, setSearch
     ? userProfile.displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
     : "U";
 
+  function goTo(tab: Tab) {
+    navigate(tabRoutes[tab]);
+  }
+
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-40 bg-[#0d1410]/95 backdrop-blur-md border-b border-[#1e2e1e]">
-        <div className="flex items-center justify-between px-4 lg:px-6 h-16">
+      <nav className="fixed top-0 left-0 right-0 z-40 bg-[#0d1410]/95 backdrop-blur-md border-b border-[#1e2e1e] h-16">
+        <div className="flex items-center justify-between px-4 lg:px-6 h-full">
           {/* Logo */}
-          <div className="flex items-center gap-3 flex-shrink-0 cursor-pointer" onClick={() => setActiveTab("listings")}>
+          <div className="flex items-center gap-3 flex-shrink-0 cursor-pointer" onClick={() => goTo("listings")}>
             <div className="w-8 h-8 bg-[#2d5a27] rounded-lg flex items-center justify-center shadow-lg shadow-green-900/30">
               <Building2 size={16} className="text-[#4ade80]" />
             </div>
@@ -62,7 +74,7 @@ export default function Navbar({ activeTab, setActiveTab, searchQuery, setSearch
             {navItems.map(item => (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => goTo(item.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all relative ${
                   activeTab === item.id
                     ? "bg-[#1e3a1e] text-[#4ade80]"
@@ -89,7 +101,7 @@ export default function Navbar({ activeTab, setActiveTab, searchQuery, setSearch
                 className="relative p-2 text-gray-400 hover:text-gray-200 transition-colors"
               >
                 <Bell size={18} />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-[#4ade80] rounded-full"></span>
+                <span className="absolute top-1 right-1 w-2 h-2 bg-[#4ade80] rounded-full" />
               </button>
               {showNotifications && (
                 <div className="absolute right-0 top-full mt-2 w-72 bg-[#141a14] border border-[#2a3a2a] rounded-xl shadow-2xl overflow-hidden z-50">
@@ -139,7 +151,7 @@ export default function Navbar({ activeTab, setActiveTab, searchQuery, setSearch
                         <Settings size={14} /> Settings
                       </button>
                       <button
-                        onClick={() => { logout(); setShowUserMenu(false); }}
+                        onClick={() => { logout(); setShowUserMenu(false); navigate("/"); }}
                         className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-[#1a241a] rounded-lg transition-colors"
                       >
                         <LogOut size={14} /> Sign Out
@@ -183,7 +195,7 @@ export default function Navbar({ activeTab, setActiveTab, searchQuery, setSearch
             {navItems.map(item => (
               <button
                 key={item.id}
-                onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
+                onClick={() => { goTo(item.id); setShowMobileMenu(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
                   activeTab === item.id ? "bg-[#1e3a1e] text-[#4ade80]" : "text-gray-400 hover:bg-[#141a14]"
                 }`}

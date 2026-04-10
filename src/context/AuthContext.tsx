@@ -5,12 +5,14 @@ import {
   signOut,
   onAuthStateChanged,
   User,
-  updateProfile
+  updateProfile,
+  setPersistence,
+  browserLocalPersistence
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 
-interface UserProfile {
+export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
@@ -41,21 +43,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Set persistence to local (survives browser close)
+  useEffect(() => {
+    setPersistence(auth, browserLocalPersistence).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
+        // Try to load full profile from Firestore
         try {
-          const docRef = doc(db, "users", user.uid);
-          const docSnap = await getDoc(docRef);
+          const docSnap = await getDoc(doc(db, "users", user.uid));
           if (docSnap.exists()) {
             setUserProfile(docSnap.data() as UserProfile);
           } else {
-            setUserProfile({
+            // Firestore profile doesn't exist yet – use Auth data
+            const fallback: UserProfile = {
               uid: user.uid,
               email: user.email || "",
               displayName: user.displayName || "User",
-            });
+            };
+            setUserProfile(fallback);
+            // Try to create the Firestore profile
+            try { await setDoc(doc(db, "users", user.uid), fallback); } catch {}
           }
         } catch {
           setUserProfile({
@@ -73,27 +84,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function login(email: string, password: string) {
+    if (!email.trim()) throw new Error("Email is required.");
+    if (!password) throw new Error("Password is required.");
     await signInWithEmailAndPassword(auth, email, password);
   }
 
   async function register(email: string, password: string, name: string, title: string, company: string) {
+    if (!name.trim()) throw new Error("Full name is required.");
+    if (!email.trim()) throw new Error("Email is required.");
+    if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+
     const cred = await createUserWithEmailAndPassword(auth, email, password);
+
+    // Update Firebase Auth displayName
     await updateProfile(cred.user, { displayName: name });
+
     const profile: UserProfile = {
       uid: cred.user.uid,
       email,
       displayName: name,
-      title,
-      company
+      title: title || undefined,
+      company: company || undefined,
     };
+
+    // Write profile to Firestore (don't silently swallow)
     try {
       await setDoc(doc(db, "users", cred.user.uid), profile);
-    } catch { }
+    } catch (err) {
+      console.error("Failed to save profile to Firestore:", err);
+      // Auth account was created, profile just didn't persist to Firestore
+    }
+
+    // Set profile immediately so UI updates
     setUserProfile(profile);
   }
 
   async function logout() {
     await signOut(auth);
+    setCurrentUser(null);
+    setUserProfile(null);
   }
 
   return (

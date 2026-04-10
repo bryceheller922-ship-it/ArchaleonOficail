@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import ListingsView from "./components/ListingsView";
@@ -6,19 +7,20 @@ import MessagesView from "./components/MessagesView";
 import NetworkView from "./components/NetworkView";
 import PortfolioView from "./components/PortfolioView";
 import SplashScreen from "./components/SplashScreen";
+import CreateListingPage from "./components/CreateListingPage";
 import { subscribeToConversations } from "./lib/firestore";
 
-type Tab = "listings" | "messages" | "network" | "portfolio";
+// Search context so ListingsView can access the navbar search
+const SearchContext = createContext({ searchQuery: "", setSearchQuery: (_q: string) => {} });
+export function useSearch() { return useContext(SearchContext); }
 
-function AppContent() {
-  const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>("listings");
+/** Layout wrapper: Navbar + full-height content */
+function AppLayout({ children }: { children: React.ReactNode }) {
+  const { currentUser, loading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [showSplash, setShowSplash] = useState(true);
   const [totalUnread, setTotalUnread] = useState(0);
-  const [pendingConvoId, setPendingConvoId] = useState<string | null>(null);
+  const location = useLocation();
 
-  // subscribe to conversations for unread badge
   useEffect(() => {
     if (!currentUser) { setTotalUnread(0); return; }
     const unsub = subscribeToConversations(currentUser.uid, (convos) => {
@@ -27,54 +29,114 @@ function AppContent() {
     return unsub;
   }, [currentUser]);
 
-  // navigate to a specific conversation in Messages tab
-  function navigateToConversation(convoId: string) {
-    setPendingConvoId(convoId);
-    setActiveTab("messages");
-  }
+  const path = location.pathname;
+  const activeTab = path.startsWith("/messages") ? "messages"
+    : path.startsWith("/network") ? "network"
+    : path.startsWith("/portfolio") ? "portfolio"
+    : "listings";
 
-  if (showSplash) {
-    return <SplashScreen onEnter={() => setShowSplash(false)} />;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-[#0a1208]">
+        <div className="w-8 h-8 border-2 border-[#4ade80] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a1208] text-white flex flex-col">
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        totalUnread={totalUnread}
-      />
+    <SearchContext.Provider value={{ searchQuery, setSearchQuery }}>
+      <div className="h-full flex flex-col bg-[#0a1208] text-white overflow-hidden">
+        <Navbar
+          activeTab={activeTab as "listings" | "messages" | "network" | "portfolio"}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          totalUnread={totalUnread}
+        />
+        <main className="flex-1 min-h-0 mt-16 flex flex-col overflow-hidden">
+          {children}
+        </main>
+      </div>
+    </SearchContext.Provider>
+  );
+}
 
-      <main className="flex-1 pt-16 flex flex-col overflow-hidden" style={{ height: "100vh" }}>
-        <div className="flex-1 overflow-hidden flex flex-col" style={{ height: "calc(100vh - 64px)" }}>
-          {activeTab === "listings" && (
-            <ListingsView
-              searchQuery={searchQuery}
-              navigateToConversation={navigateToConversation}
-            />
-          )}
-          {activeTab === "messages" && (
-            <MessagesView
-              pendingConvoId={pendingConvoId}
-              clearPendingConvo={() => setPendingConvoId(null)}
-            />
-          )}
-          {activeTab === "network" && (
-            <NetworkView navigateToConversation={navigateToConversation} />
-          )}
-          {activeTab === "portfolio" && <PortfolioView />}
-        </div>
-      </main>
-    </div>
+function AppRoutes() {
+  const navigate = useNavigate();
+
+  function navigateToConversation(convoId: string) {
+    navigate("/messages", { state: { convoId } });
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<SplashScreen onEnter={() => navigate("/listings")} />} />
+
+      <Route path="/listings" element={
+        <AppLayout>
+          <ListingsPage navigateToConversation={navigateToConversation} />
+        </AppLayout>
+      } />
+
+      <Route path="/messages" element={
+        <AppLayout>
+          <MessagesPage />
+        </AppLayout>
+      } />
+
+      <Route path="/network" element={
+        <AppLayout>
+          <NetworkView navigateToConversation={navigateToConversation} />
+        </AppLayout>
+      } />
+
+      <Route path="/portfolio" element={
+        <AppLayout>
+          <PortfolioView />
+        </AppLayout>
+      } />
+
+      <Route path="/create-listing" element={
+        <AppLayout>
+          <CreateListingPage />
+        </AppLayout>
+      } />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+/** Reads searchQuery from context */
+function ListingsPage({ navigateToConversation }: { navigateToConversation: (id: string) => void }) {
+  const { searchQuery } = useSearch();
+  return <ListingsView searchQuery={searchQuery} navigateToConversation={navigateToConversation} />;
+}
+
+/** Reads convoId from location state */
+function MessagesPage() {
+  const location = useLocation();
+  const state = location.state as { convoId?: string } | null;
+  const [pendingConvoId, setPendingConvoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (state?.convoId) {
+      setPendingConvoId(state.convoId);
+      window.history.replaceState({}, document.title);
+    }
+  }, [state]);
+
+  return (
+    <MessagesView
+      pendingConvoId={pendingConvoId}
+      clearPendingConvo={() => setPendingConvoId(null)}
+    />
   );
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <AppRoutes />
     </AuthProvider>
   );
 }
