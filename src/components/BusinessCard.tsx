@@ -128,10 +128,10 @@ export function BusinessDetailModal({ business, onClose, onMessageOwner }: {
   const [imgIdx, setImgIdx] = useState(0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm md:p-4" onClick={onClose}>
       <div
         onClick={e => e.stopPropagation()}
-        className="relative w-full max-w-2xl max-h-[90vh] bg-[#141a14] border border-[#2a3a2a] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        className="relative w-full md:max-w-2xl h-[92vh] md:h-auto md:max-h-[90vh] bg-[#141a14] border-t md:border border-[#2a3a2a] rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col"
       >
         {/* Close button */}
         <button onClick={onClose} className="absolute top-4 right-4 z-10 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition-colors">
@@ -202,7 +202,7 @@ export function BusinessDetailModal({ business, onClose, onMessageOwner }: {
           </div>
 
           {/* Key Metrics */}
-          <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
             {[
               { label: "Revenue", value: business.revenue, color: "text-white" },
               { label: "EBITDA", value: business.ebitda, color: "text-white" },

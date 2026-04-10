@@ -103,8 +103,8 @@ export default function NetworkView({ navigateToConversation }: NetworkViewProps
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Left Panel */}
-      <div className="w-72 flex flex-col border-r border-[#1e2e1e] bg-[#0d1410] overflow-y-auto flex-shrink-0">
+      {/* Left Panel - hidden on mobile */}
+      <div className="hidden md:flex w-72 flex-col border-r border-[#1e2e1e] bg-[#0d1410] overflow-y-auto flex-shrink-0">
         {/* Stats */}
         <div className="p-4 border-b border-[#1e2e1e]">
           <h2 className="text-white font-bold text-lg mb-4">Your Network</h2>
@@ -262,9 +262,10 @@ export default function NetworkView({ navigateToConversation }: NetworkViewProps
             )}
           </div>
 
-          {/* Person Detail */}
+          {/* Person Detail - sidebar on desktop, overlay on mobile */}
           {selectedPerson && (
-            <div className="w-80 border-l border-[#1e2e1e] bg-[#0d1410] overflow-y-auto p-6 flex-shrink-0">
+            <div className="fixed inset-0 z-40 bg-black/60 md:relative md:inset-auto md:z-auto md:bg-transparent flex justify-end" onClick={() => setSelectedPerson(null)}>
+            <div className="w-[85%] max-w-sm md:w-80 border-l border-[#1e2e1e] bg-[#0d1410] overflow-y-auto p-6 flex-shrink-0 h-full" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-white font-bold">Profile</h3>
                 <button onClick={() => setSelectedPerson(null)} className="text-gray-500 hover:text-gray-300 transition-colors">
@@ -305,6 +306,7 @@ export default function NetworkView({ navigateToConversation }: NetworkViewProps
                   <MessageSquare size={16} /> Send Message
                 </button>
               </div>
+            </div>
             </div>
           )}
         </div>

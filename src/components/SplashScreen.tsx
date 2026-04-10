@@ -97,18 +97,18 @@ export default function SplashScreen({ onEnter, onListBusiness }: SplashScreenPr
           <span className="text-[#4ade80] text-xs font-medium tracking-wider">INSTITUTIONAL GRADE DEAL INTELLIGENCE</span>
         </div>
 
-        <h1 className="text-5xl lg:text-7xl font-bold text-white mb-4 leading-tight tracking-tight">
+        <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold text-white mb-4 leading-tight tracking-tight">
           Private Markets.<br />
           <span className="text-[#4ade80]">Reimagined.</span>
         </h1>
 
-        <p className="text-gray-400 text-lg lg:text-xl max-w-2xl mb-10 leading-relaxed">
+        <p className="text-gray-400 text-sm sm:text-lg lg:text-xl max-w-2xl mb-8 md:mb-10 leading-relaxed px-4">
           The first institutional-grade marketplace for private business acquisitions.
           Discover verified deals, connect with top investors, and close faster.
         </p>
 
         {/* Stats */}
-        <div className="flex items-center gap-8 mb-12">
+        <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8 mb-12">
           {stats.map(s => (
             <div key={s.label} className="text-center">
               <p className="text-[#4ade80] font-bold text-2xl lg:text-3xl">{s.value}</p>
@@ -138,9 +138,9 @@ export default function SplashScreen({ onEnter, onListBusiness }: SplashScreenPr
 
       {/* Features Row */}
       <div className="relative z-10 border-t border-[#1a2a1a] bg-[#0d1410]/80 backdrop-blur-sm">
-        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-[#1a2a1a]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#1a2a1a]">
           {features.map(f => (
-            <div key={f.title} className="flex items-start gap-3 px-6 py-5">
+            <div key={f.title} className="flex items-start gap-3 px-4 sm:px-6 py-4 sm:py-5">
               <div className="text-[#4ade80] mt-0.5 flex-shrink-0">{f.icon}</div>
               <div>
                 <p className="text-white font-semibold text-sm mb-0.5">{f.title}</p>

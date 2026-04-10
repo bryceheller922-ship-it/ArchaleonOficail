@@ -116,7 +116,7 @@ export default function PortfolioView() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
         {[
           { label: "Total Portfolio Value", value: fmt(metrics.totalValue), delta: `${holdings.length} holdings`, icon: <DollarSign size={20} /> },
           { label: "Total Invested", value: fmt(metrics.totalCost), delta: budget > 0 ? `${budgetUsedPct}% of budget` : "—", icon: <BarChart3 size={20} /> },

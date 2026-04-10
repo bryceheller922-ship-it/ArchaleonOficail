@@ -104,7 +104,7 @@ export default function Navbar({ activeTab, searchQuery, setSearchQuery, totalUn
                 <span className="absolute top-1 right-1 w-2 h-2 bg-[#4ade80] rounded-full" />
               </button>
               {showNotifications && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-[#141a14] border border-[#2a3a2a] rounded-xl shadow-2xl overflow-hidden z-50">
+                <div className="absolute right-0 top-full mt-2 w-64 sm:w-72 bg-[#141a14] border border-[#2a3a2a] rounded-xl shadow-2xl overflow-hidden z-50">
                   <div className="p-3 border-b border-[#2a3a2a]">
                     <p className="text-white font-semibold text-sm">Notifications</p>
                   </div>

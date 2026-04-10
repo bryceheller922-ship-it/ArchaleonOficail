@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Filter, SlidersHorizontal, Plus, ChevronDown, X, Lock } from "lucide-react";
+import { Filter, SlidersHorizontal, Plus, ChevronDown, X, Lock, Map, List } from "lucide-react";
 import { Business } from "../lib/mockData";
 import BusinessCard, { BusinessDetailModal } from "./BusinessCard";
 import MapView from "./MapView";
@@ -28,6 +28,15 @@ export default function ListingsView({ searchQuery, navigateToConversation }: Li
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState("valuation");
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileView, setMobileView] = useState<"list" | "map">("list");
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     const unsub = subscribeToListings(setBusinesses);
@@ -87,13 +96,8 @@ export default function ListingsView({ searchQuery, navigateToConversation }: Li
       const myInitials = userProfile.displayName
         .split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
       const convoId = await getOrCreateConversation(
-        currentUser.uid,
-        userProfile.displayName,
-        myInitials,
-        business.createdBy,
-        business.ownerName,
-        business.ownerAvatar,
-        business.name
+        currentUser.uid, userProfile.displayName, myInitials,
+        business.createdBy, business.ownerName, business.ownerAvatar, business.name
       );
       setSelectedBusiness(null);
       navigateToConversation(convoId);
@@ -106,23 +110,23 @@ export default function ListingsView({ searchQuery, navigateToConversation }: Li
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e2e1e] bg-[#0d1410] flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-gray-400 text-sm">
+      <div className="flex items-center justify-between px-3 md:px-4 py-2 md:py-3 border-b border-[#1e2e1e] bg-[#0d1410] flex-shrink-0 gap-2">
+        <div className="flex items-center gap-2 md:gap-3 flex-wrap min-w-0">
+          <span className="text-gray-400 text-xs md:text-sm whitespace-nowrap">
             <span className="text-white font-bold">{filtered.length}</span> companies
           </span>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-              showFilters || hasFilters ? "bg-[#1e3a1e] text-[#4ade80] border border-[#2d5a27]" : "bg-[#141a14] text-gray-400 border border-[#1e2e1e] hover:border-[#2a3a2a]"
+            className={`flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg text-xs md:text-sm transition-colors ${
+              showFilters || hasFilters ? "bg-[#1e3a1e] text-[#4ade80] border border-[#2d5a27]" : "bg-[#141a14] text-gray-400 border border-[#1e2e1e]"
             }`}
           >
-            <Filter size={14} />
-            Filters
+            <Filter size={12} />
+            <span className="hidden sm:inline">Filters</span>
             {hasFilters && <span className="w-1.5 h-1.5 bg-[#4ade80] rounded-full" />}
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <SlidersHorizontal size={14} className="text-gray-500" />
             <select
               value={sortBy}
@@ -134,75 +138,90 @@ export default function ListingsView({ searchQuery, navigateToConversation }: Li
               <option value="growth">Sort: Growth</option>
             </select>
           </div>
+
+          {/* Mobile: list/map toggle */}
+          {isMobile && (
+            <button
+              onClick={() => setMobileView(mobileView === "list" ? "map" : "list")}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-[#141a14] text-gray-400 border border-[#1e2e1e]"
+            >
+              {mobileView === "list" ? <><Map size={12} /> Map</> : <><List size={12} /> List</>}
+            </button>
+          )}
         </div>
 
         {currentUser ? (
           <button
             onClick={handleListBusiness}
-            className="flex items-center gap-2 bg-[#2d5a27] hover:bg-[#3a7232] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-[#2d5a27] hover:bg-[#3a7232] text-white text-xs md:text-sm font-semibold px-3 md:px-4 py-2 rounded-lg transition-colors whitespace-nowrap flex-shrink-0"
           >
             <Plus size={14} />
-            List Business
+            <span className="hidden sm:inline">List Business</span>
+            <span className="sm:hidden">List</span>
           </button>
         ) : (
           <button
             onClick={() => setShowAuthModal(true)}
-            className="flex items-center gap-2 bg-[#1a241a] border border-[#2a3a2a] text-gray-500 text-sm font-semibold px-4 py-2 rounded-lg transition-colors hover:border-[#3a5a3a] hover:text-gray-400"
+            className="flex items-center gap-1.5 bg-[#1a241a] border border-[#2a3a2a] text-gray-500 text-xs md:text-sm font-semibold px-3 md:px-4 py-2 rounded-lg transition-colors whitespace-nowrap flex-shrink-0"
           >
-            <Lock size={14} />
-            Sign in to List
+            <Lock size={12} />
+            <span className="hidden sm:inline">Sign in to List</span>
+            <span className="sm:hidden">Sign in</span>
           </button>
         )}
       </div>
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-[#0d1410] border-b border-[#1e2e1e] flex-wrap flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 bg-[#0d1410] border-b border-[#1e2e1e] flex-wrap flex-shrink-0">
           <FilterSelect label="Industry" value={filterIndustry} options={industries} onChange={setFilterIndustry} />
-          <FilterSelect label="Deal Type" value={filterDeal} options={dealTypes} onChange={setFilterDeal} />
+          <FilterSelect label="Deal" value={filterDeal} options={dealTypes} onChange={setFilterDeal} />
           <FilterSelect label="Status" value={filterStatus} options={statuses} onChange={setFilterStatus} />
           {hasFilters && (
-            <button onClick={clearFilters} className="flex items-center gap-1 text-gray-500 hover:text-gray-300 text-xs transition-colors">
-              <X size={12} /> Clear all
+            <button onClick={clearFilters} className="flex items-center gap-1 text-gray-500 hover:text-gray-300 text-xs">
+              <X size={12} /> Clear
             </button>
           )}
         </div>
       )}
 
-      {/* Main Split Layout - listings scroll, map fills */}
+      {/* Main Layout */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Scrollable Listings */}
-        <div className="w-[38%] flex flex-col border-r border-[#1e2e1e] overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 gap-3">
-                <Filter size={32} className="text-gray-700" />
-                <p className="text-gray-500 text-sm">No companies match your filters</p>
-                {hasFilters && (
-                  <button onClick={clearFilters} className="text-[#4ade80] text-xs hover:underline">Clear filters</button>
-                )}
-              </div>
-            ) : (
-              filtered.map(b => (
-                <BusinessCard
-                  key={b.id}
-                  business={b}
-                  isSelected={selectedBusiness?.id === b.id}
-                  onClick={() => setSelectedBusiness(b)}
-                />
-              ))
-            )}
+        {/* Desktop: side-by-side | Mobile: toggle between list and map */}
+        {(!isMobile || mobileView === "list") && (
+          <div className={`${isMobile ? "w-full" : "w-[38%] border-r border-[#1e2e1e]"} flex flex-col overflow-hidden`}>
+            <div className="flex-1 overflow-y-auto p-2 md:p-3 space-y-2">
+              {filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 gap-3">
+                  <Filter size={32} className="text-gray-700" />
+                  <p className="text-gray-500 text-sm">No companies match your filters</p>
+                  {hasFilters && (
+                    <button onClick={clearFilters} className="text-[#4ade80] text-xs hover:underline">Clear filters</button>
+                  )}
+                </div>
+              ) : (
+                filtered.map(b => (
+                  <BusinessCard
+                    key={b.id}
+                    business={b}
+                    isSelected={selectedBusiness?.id === b.id}
+                    onClick={() => setSelectedBusiness(b)}
+                  />
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Right: Map fills remaining space */}
-        <div className="flex-1 p-3 overflow-hidden">
-          <MapView
-            businesses={filtered}
-            selectedBusiness={selectedBusiness}
-            onSelectBusiness={(b) => setSelectedBusiness(b)}
-          />
-        </div>
+        {(!isMobile || mobileView === "map") && (
+          <div className={`${isMobile ? "w-full" : "flex-1"} p-2 md:p-3 overflow-hidden`}>
+            <MapView
+              businesses={filtered}
+              selectedBusiness={selectedBusiness}
+              onSelectBusiness={(b) => setSelectedBusiness(b)}
+            />
+          </div>
+        )}
       </div>
 
       {/* Detail Modal */}
@@ -215,21 +234,16 @@ export default function ListingsView({ searchQuery, navigateToConversation }: Li
       )}
 
       {/* Auth Modal */}
-      {showAuthModal && <AuthModal onClose={() => {
-        setShowAuthModal(false);
-      }} />}
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   );
 }
 
 function FilterSelect({ label, value, options, onChange }: {
-  label: string;
-  value: string;
-  options: string[];
-  onChange: (v: string) => void;
+  label: string; value: string; options: string[]; onChange: (v: string) => void;
 }) {
   return (
-    <div className="relative flex items-center gap-1.5 bg-[#141a14] border border-[#1e2e1e] rounded-lg px-3 py-1.5">
+    <div className="relative flex items-center gap-1 bg-[#141a14] border border-[#1e2e1e] rounded-lg px-2 md:px-3 py-1.5">
       <span className="text-gray-600 text-xs">{label}:</span>
       <select
         value={value}
@@ -242,4 +256,3 @@ function FilterSelect({ label, value, options, onChange }: {
     </div>
   );
 }
-
