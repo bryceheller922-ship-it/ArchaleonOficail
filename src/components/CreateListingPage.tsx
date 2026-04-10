@@ -5,6 +5,7 @@ import { Business } from "../lib/mockData";
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "./AuthModal";
 import { createListing, geocodeAddress } from "../lib/firestore";
+import { formatDollar, formatNumber, parseFormatted } from "../utils/format";
 
 const industries = ["Manufacturing", "Healthcare Technology", "Logistics & Supply Chain", "Fintech", "Clean Energy", "Defense", "Biotechnology", "Commercial Real Estate", "Technology", "Other"];
 const dealTypes = ["Full Acquisition", "Growth Equity", "Recapitalization", "Partial Stake", "Venture / Growth", "Portfolio Sale"];
@@ -71,7 +72,7 @@ export default function CreateListingPage() {
         revenue: form.revenue || "N/A",
         ebitda: form.ebitda || "N/A",
         valuation: form.askingPrice || "N/A",
-        employees: parseInt(form.employees) || 0,
+        employees: parseInt(parseFormatted(form.employees)) || 0,
         founded: new Date().getFullYear(),
         location: `${geo.city || ""}, ${geo.state || ""}`.replace(/^, |, $/g, "") || form.address,
         city: geo.city,
@@ -193,7 +194,7 @@ export default function CreateListingPage() {
               </Field>
 
               <Field label="Number of Employees">
-                <input type="number" value={form.employees} onChange={e => update("employees", e.target.value)} placeholder="e.g. 312" className="input-field" />
+                <input value={form.employees} onChange={e => update("employees", formatNumber(e.target.value))} placeholder="e.g. 312" className="input-field" />
               </Field>
 
               <Field label="Website">
@@ -241,13 +242,13 @@ export default function CreateListingPage() {
           ) : (
             <>
               <Field label="Annual Revenue">
-                <input value={form.revenue} onChange={e => update("revenue", e.target.value)} placeholder="e.g. $42.8M" className="input-field" />
+                <input value={form.revenue} onChange={e => update("revenue", formatDollar(e.target.value))} placeholder="e.g. $5,000,000" className="input-field" />
               </Field>
               <Field label="EBITDA">
-                <input value={form.ebitda} onChange={e => update("ebitda", e.target.value)} placeholder="e.g. $9.6M" className="input-field" />
+                <input value={form.ebitda} onChange={e => update("ebitda", formatDollar(e.target.value))} placeholder="e.g. $1,200,000" className="input-field" />
               </Field>
               <Field label="Asking Price / Valuation">
-                <input value={form.askingPrice} onChange={e => update("askingPrice", e.target.value)} placeholder="e.g. $86M" className="input-field" />
+                <input value={form.askingPrice} onChange={e => update("askingPrice", formatDollar(e.target.value))} placeholder="e.g. $10,000,000" className="input-field" />
               </Field>
               <Field label="Gross Margin">
                 <input value={form.grossMargin} onChange={e => update("grossMargin", e.target.value)} placeholder="e.g. 38.2%" className="input-field" />

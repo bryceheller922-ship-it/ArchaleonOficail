@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { TrendingUp, DollarSign, BarChart3, Building2, PieChart, Activity, Plus, X, Trash2, Loader2, Copy, CheckCircle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { formatDollar, parseFormatted } from "../utils/format";
 import AuthModal from "./AuthModal";
 import { subscribeToHoldings, addHolding, deleteHolding, updateBudget, type Holding } from "../lib/firestore";
 
@@ -50,7 +51,7 @@ export default function PortfolioView() {
   };
 
   function saveBudget() {
-    const val = parseFloat(budgetInput.replace(/[$,]/g, "")) || 0;
+    const val = parseFloat(parseFormatted(budgetInput)) || 0;
     setBudget(val);
     setEditingBudget(false);
     if (currentUser) updateBudget(currentUser.uid, val);
@@ -146,9 +147,9 @@ export default function PortfolioView() {
             <div className="flex items-center gap-2">
               <input
                 value={budgetInput}
-                onChange={e => setBudgetInput(e.target.value)}
-                placeholder="e.g. 5000000"
-                className="bg-[#1a241a] border border-[#2a3a2a] rounded px-2 py-1 text-white text-xs w-32 focus:outline-none focus:border-[#4ade80]"
+                onChange={e => setBudgetInput(formatDollar(e.target.value))}
+                placeholder="e.g. $5,000,000"
+                className="bg-[#1a241a] border border-[#2a3a2a] rounded px-2 py-1 text-white text-xs w-36 focus:outline-none focus:border-[#4ade80]"
               />
               <button onClick={saveBudget} className="text-[#4ade80] text-xs font-semibold">Save</button>
               <button onClick={() => setEditingBudget(false)} className="text-gray-500 text-xs">Cancel</button>
@@ -270,8 +271,8 @@ function AddHoldingModal({ userId, onClose }: { userId: string; onClose: () => v
         name: name.trim(),
         sector,
         acquired: acquired || new Date().toISOString().split("T")[0],
-        costBasis: parseFloat(costBasis.replace(/[$,]/g, "")) || 0,
-        currentValue: parseFloat(currentValue.replace(/[$,]/g, "")) || parseFloat(costBasis.replace(/[$,]/g, "")) || 0,
+        costBasis: parseFloat(parseFormatted(costBasis)) || 0,
+        currentValue: parseFloat(parseFormatted(currentValue)) || parseFloat(parseFormatted(costBasis)) || 0,
         notes,
       });
       onClose();
@@ -308,11 +309,11 @@ function AddHoldingModal({ userId, onClose }: { userId: string; onClose: () => v
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-gray-400 text-xs uppercase tracking-wider mb-1 block">Cost Basis *</label>
-              <input value={costBasis} onChange={e => setCostBasis(e.target.value)} placeholder="e.g. 5000000" className="w-full bg-[#1a241a] border border-[#2a3a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#4ade80]" />
+              <input value={costBasis} onChange={e => setCostBasis(formatDollar(e.target.value))} placeholder="e.g. $5,000,000" className="w-full bg-[#1a241a] border border-[#2a3a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#4ade80]" />
             </div>
             <div>
               <label className="text-gray-400 text-xs uppercase tracking-wider mb-1 block">Current Value</label>
-              <input value={currentValue} onChange={e => setCurrentValue(e.target.value)} placeholder="e.g. 7000000" className="w-full bg-[#1a241a] border border-[#2a3a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#4ade80]" />
+              <input value={currentValue} onChange={e => setCurrentValue(formatDollar(e.target.value))} placeholder="e.g. $7,000,000" className="w-full bg-[#1a241a] border border-[#2a3a2a] rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#4ade80]" />
             </div>
           </div>
           <div>
