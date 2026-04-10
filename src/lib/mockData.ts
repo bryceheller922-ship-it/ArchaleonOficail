@@ -27,6 +27,8 @@ export interface Business {
   listedAt: string;
   website: string;
   dealType: string;
+  imageUrls?: string[];
+  createdBy?: string;
 }
 
 export interface Professional {
@@ -65,11 +67,3 @@ export interface Conversation {
   unread: number;
   businessName?: string;
 }
-
-export const businesses: Business[] = [];
-
-export const professionals: Professional[] = [];
-
-export const conversations: Conversation[] = [];
-
-export const messageHistory: Record<string, Message[]> = {};
