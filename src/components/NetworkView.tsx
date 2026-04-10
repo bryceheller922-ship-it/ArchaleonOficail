@@ -107,9 +107,9 @@ export default function NetworkView() {
           <h3 className="text-gray-400 text-xs uppercase tracking-wider mb-3">Market Activity</h3>
           <div className="space-y-2">
             {[
-              { label: "Active Listings", value: "8", icon: <TrendingUp size={12} />, color: "text-[#4ade80]" },
-              { label: "Under LOI", value: "1", icon: <Star size={12} />, color: "text-amber-400" },
-              { label: "Total AUM Visible", value: "$1.4B+", icon: <Network size={12} />, color: "text-blue-400" },
+              { label: "Active Listings", value: "0", icon: <TrendingUp size={12} />, color: "text-[#4ade80]" },
+              { label: "Under LOI", value: "0", icon: <Star size={12} />, color: "text-amber-400" },
+              { label: "Total AUM Visible", value: "$0", icon: <Network size={12} />, color: "text-blue-400" },
             ].map(item => (
               <div key={item.label} className="flex items-center justify-between bg-[#141a14] border border-[#1e2e1e] rounded-lg px-3 py-2">
                 <div className="flex items-center gap-2">
