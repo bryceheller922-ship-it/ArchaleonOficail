@@ -1,10 +1,13 @@
-import { useState, useRef, useEffect } from "react";
-import { Send, Search, MoreVertical, Phone, Video, Building2, ArrowLeft, MessageSquare } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Send, Search, MoreVertical, Phone, Video, Building2, ArrowLeft, MessageSquare, PhoneOff } from "lucide-react";
+import AgoraUIKit from "agora-react-uikit";
 import { Conversation, Message } from "../lib/mockData";
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "./AuthModal";
 import { subscribeToConversations, subscribeToMessages, sendMessageToFirestore } from "../lib/firestore";
 import { formatDistanceToNow } from "date-fns";
+
+const AGORA_APP_ID = "e7f6e9aeecf14b2ba10e3f40be9f56e7";
 
 interface MessagesViewProps {
   pendingConvoId: string | null;
@@ -21,6 +24,10 @@ export default function MessagesView({ pendingConvoId, clearPendingConvo }: Mess
   const [showAuth, setShowAuth] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Video call state
+  const [inCall, setInCall] = useState(false);
+  const [callType, setCallType] = useState<"audio" | "video">("video");
 
   // responsive check
   useEffect(() => {
@@ -83,7 +90,7 @@ export default function MessagesView({ pendingConvoId, clearPendingConvo }: Mess
     setNewMessage("");
   }
 
-  const otherParticipant = (c: Conversation) => {
+  const otherParticipant = useCallback((c: Conversation) => {
     if (!currentUser) return { name: c.participantNames[1] || "User", avatar: c.participantAvatars[1] || "U" };
     const idx = c.participants.indexOf(currentUser.uid);
     const otherIdx = idx === 0 ? 1 : 0;
@@ -91,7 +98,28 @@ export default function MessagesView({ pendingConvoId, clearPendingConvo }: Mess
       name: c.participantNames[otherIdx] || "User",
       avatar: c.participantAvatars[otherIdx] || "U",
     };
-  };
+  }, [currentUser]);
+
+  function startCall(type: "audio" | "video") {
+    if (!activeConvo) return;
+    setCallType(type);
+    setInCall(true);
+
+    // Send a message notifying the other person
+    if (currentUser && userProfile && activeConvo) {
+      const initials = userProfile.displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+      const callMsg = type === "video"
+        ? `📹 Started a video call. Join the call to connect.`
+        : `📞 Started a voice call. Join the call to connect.`;
+      sendMessageToFirestore(
+        activeConvo.id, currentUser.uid, userProfile.displayName, initials, callMsg
+      ).catch(() => {});
+    }
+  }
+
+  function endCall() {
+    setInCall(false);
+  }
 
   // not logged in
   if (!currentUser) {
@@ -118,10 +146,13 @@ export default function MessagesView({ pendingConvoId, clearPendingConvo }: Mess
   const showList = !isMobile || !activeConvo;
   const showChat = !isMobile || activeConvo;
 
+  // Channel name derived from conversation ID (safe for Agora)
+  const agoraChannel = activeConvo ? `archaleon_${activeConvo.id.slice(0, 20)}` : "";
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* Conversations Sidebar */}
-      {showList && (
+      {showList && !inCall && (
         <div className={`${isMobile ? "w-full" : "w-80"} flex flex-col border-r border-[#1e2e1e] bg-[#0d1410] overflow-hidden`}>
           {/* Header */}
           <div className="p-4 border-b border-[#1e2e1e] flex-shrink-0">
@@ -202,129 +233,158 @@ export default function MessagesView({ pendingConvoId, clearPendingConvo }: Mess
         <div className="flex-1 flex flex-col overflow-hidden bg-[#0a1208]">
           {activeConvo ? (
             <>
-              {/* Chat Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e2e1e] bg-[#0d1410] flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  {isMobile && (
-                    <button onClick={() => setActiveConvo(null)} className="text-gray-400 hover:text-gray-200 mr-1">
-                      <ArrowLeft size={20} />
-                    </button>
-                  )}
-                  <div className="relative">
-                    <div className="w-10 h-10 bg-[#2d5a27] rounded-full flex items-center justify-center text-sm font-bold text-[#4ade80]">
-                      {otherParticipant(activeConvo).avatar}
+              {/* Video Call Overlay */}
+              {inCall && (
+                <div className="flex-1 flex flex-col overflow-hidden relative">
+                  {/* Call Header */}
+                  <div className="flex items-center justify-between px-6 py-3 bg-[#0d1410] border-b border-[#1e2e1e] flex-shrink-0 z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                      <p className="text-white font-semibold text-sm">
+                        {callType === "video" ? "Video Call" : "Voice Call"} with {otherParticipant(activeConvo).name}
+                      </p>
                     </div>
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#4ade80] rounded-full border-2 border-[#0d1410]" />
+                    <button
+                      onClick={endCall}
+                      className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+                    >
+                      <PhoneOff size={14} /> End Call
+                    </button>
                   </div>
-                  <div>
-                    <p className="text-white font-semibold text-sm">{otherParticipant(activeConvo).name}</p>
-                    {activeConvo.businessName && (
-                      <div className="flex items-center gap-1">
-                        <Building2 size={10} className="text-[#4ade80]" />
-                        <span className="text-[#4ade80] text-xs">{activeConvo.businessName}</span>
-                      </div>
-                    )}
+                  {/* Agora UI */}
+                  <div className="flex-1 min-h-0 relative">
+                    <AgoraUIKit
+                      rtcProps={{
+                        appId: AGORA_APP_ID,
+                        channel: agoraChannel,
+                        token: null,
+                        uid: 0,
+                      }}
+                      rtmProps={{ username: userProfile?.displayName || "User", displayUsername: true }}
+                      callbacks={{ EndCall: endCall }}
+                      styleProps={{
+                        localBtnContainer: { backgroundColor: "transparent", borderTop: "1px solid #1e2e1e" },
+                        localBtnStyles: { muteLocalAudio: { backgroundColor: "#2d5a27" }, muteLocalVideo: { backgroundColor: "#2d5a27" }, endCall: { backgroundColor: "#dc2626" } },
+                      }}
+                    />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      if (activeConvo && currentUser && userProfile) {
-                        const initials = userProfile.displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-                        sendMessageToFirestore(activeConvo.id, currentUser.uid, userProfile.displayName, initials,
-                          "I'd like to schedule a phone call. When works for you?"
-                        ).catch(() => {});
-                      }
-                    }}
-                    className="p-2 text-gray-500 hover:text-gray-300 hover:bg-[#1a241a] rounded-lg transition-colors"
-                    title="Request a call"
-                  >
-                    <Phone size={16} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (activeConvo && currentUser && userProfile) {
-                        const initials = userProfile.displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-                        sendMessageToFirestore(activeConvo.id, currentUser.uid, userProfile.displayName, initials,
-                          "I'd like to schedule a video meeting. When works for you?"
-                        ).catch(() => {});
-                      }
-                    }}
-                    className="p-2 text-gray-500 hover:text-gray-300 hover:bg-[#1a241a] rounded-lg transition-colors"
-                    title="Request a video meeting"
-                  >
-                    <Video size={16} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (activeConvo?.businessName) {
-                        alert(`Regarding: ${activeConvo.businessName}`);
-                      }
-                    }}
-                    className="p-2 text-gray-500 hover:text-gray-300 hover:bg-[#1a241a] rounded-lg transition-colors"
-                    title="View deal info"
-                  >
-                    <MoreVertical size={16} />
-                  </button>
-                </div>
-              </div>
+              )}
 
-              {/* Messages - scrollable */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                {messages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-32 gap-2">
-                    <p className="text-gray-500 text-sm">No messages yet. Say hello!</p>
-                  </div>
-                )}
-                {messages.map((msg) => {
-                  const isMe = msg.senderId === currentUser.uid;
-                  return (
-                    <div key={msg.id} className={`flex items-end gap-3 ${isMe ? "flex-row-reverse" : ""}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                        isMe ? "bg-[#2d5a27] text-[#4ade80]" : "bg-[#1e3a1e] text-[#4ade80]"
-                      }`}>
-                        {msg.senderAvatar}
-                      </div>
-                      <div className={`max-w-xs lg:max-w-md ${isMe ? "items-end" : "items-start"} flex flex-col gap-1`}>
-                        <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                          isMe
-                            ? "bg-[#2d5a27] text-white rounded-br-sm"
-                            : "bg-[#1a241a] border border-[#2a3a2a] text-gray-200 rounded-bl-sm"
-                        }`}>
-                          {msg.text}
+              {/* Normal Chat (hidden during call) */}
+              {!inCall && (
+                <>
+                  {/* Chat Header */}
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e2e1e] bg-[#0d1410] flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                      {isMobile && (
+                        <button onClick={() => setActiveConvo(null)} className="text-gray-400 hover:text-gray-200 mr-1">
+                          <ArrowLeft size={20} />
+                        </button>
+                      )}
+                      <div className="relative">
+                        <div className="w-10 h-10 bg-[#2d5a27] rounded-full flex items-center justify-center text-sm font-bold text-[#4ade80]">
+                          {otherParticipant(activeConvo).avatar}
                         </div>
-                        {msg.timestamp && (
-                          <span className="text-gray-600 text-xs">
-                            {formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true })}
-                          </span>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#4ade80] rounded-full border-2 border-[#0d1410]" />
+                      </div>
+                      <div>
+                        <p className="text-white font-semibold text-sm">{otherParticipant(activeConvo).name}</p>
+                        {activeConvo.businessName && (
+                          <div className="flex items-center gap-1">
+                            <Building2 size={10} className="text-[#4ade80]" />
+                            <span className="text-[#4ade80] text-xs">{activeConvo.businessName}</span>
+                          </div>
                         )}
                       </div>
                     </div>
-                  );
-                })}
-                <div ref={messagesEndRef} />
-              </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => startCall("audio")}
+                        className="p-2 text-gray-500 hover:text-[#4ade80] hover:bg-[#1a241a] rounded-lg transition-colors"
+                        title="Start voice call"
+                      >
+                        <Phone size={16} />
+                      </button>
+                      <button
+                        onClick={() => startCall("video")}
+                        className="p-2 text-gray-500 hover:text-[#4ade80] hover:bg-[#1a241a] rounded-lg transition-colors"
+                        title="Start video call"
+                      >
+                        <Video size={16} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (activeConvo?.businessName) {
+                            alert(`Regarding: ${activeConvo.businessName}`);
+                          }
+                        }}
+                        className="p-2 text-gray-500 hover:text-gray-300 hover:bg-[#1a241a] rounded-lg transition-colors"
+                        title="View deal info"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                    </div>
+                  </div>
 
-              {/* Input - fixed at bottom */}
-              <div className="p-4 border-t border-[#1e2e1e] bg-[#0d1410] flex-shrink-0">
-                <div className="flex items-center gap-3 bg-[#141a14] border border-[#1e2e1e] rounded-xl px-4 py-3">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={e => setNewMessage(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                    placeholder="Type a message..."
-                    className="flex-1 bg-transparent text-white placeholder-gray-600 text-sm focus:outline-none"
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={!newMessage.trim()}
-                    className="w-8 h-8 bg-[#2d5a27] hover:bg-[#3a7232] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg flex items-center justify-center transition-colors"
-                  >
-                    <Send size={14} />
-                  </button>
-                </div>
-              </div>
+                  {/* Messages - scrollable */}
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {messages.length === 0 && (
+                      <div className="flex flex-col items-center justify-center h-32 gap-2">
+                        <p className="text-gray-500 text-sm">No messages yet. Say hello!</p>
+                      </div>
+                    )}
+                    {messages.map((msg) => {
+                      const isMe = msg.senderId === currentUser.uid;
+                      return (
+                        <div key={msg.id} className={`flex items-end gap-3 ${isMe ? "flex-row-reverse" : ""}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                            isMe ? "bg-[#2d5a27] text-[#4ade80]" : "bg-[#1e3a1e] text-[#4ade80]"
+                          }`}>
+                            {msg.senderAvatar}
+                          </div>
+                          <div className={`max-w-xs lg:max-w-md ${isMe ? "items-end" : "items-start"} flex flex-col gap-1`}>
+                            <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                              isMe
+                                ? "bg-[#2d5a27] text-white rounded-br-sm"
+                                : "bg-[#1a241a] border border-[#2a3a2a] text-gray-200 rounded-bl-sm"
+                            }`}>
+                              {msg.text}
+                            </div>
+                            {msg.timestamp && (
+                              <span className="text-gray-600 text-xs">
+                                {formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  {/* Input - fixed at bottom */}
+                  <div className="p-4 border-t border-[#1e2e1e] bg-[#0d1410] flex-shrink-0">
+                    <div className="flex items-center gap-3 bg-[#141a14] border border-[#1e2e1e] rounded-xl px-4 py-3">
+                      <input
+                        type="text"
+                        value={newMessage}
+                        onChange={e => setNewMessage(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                        placeholder="Type a message..."
+                        className="flex-1 bg-transparent text-white placeholder-gray-600 text-sm focus:outline-none"
+                      />
+                      <button
+                        onClick={sendMessage}
+                        disabled={!newMessage.trim()}
+                        className="w-8 h-8 bg-[#2d5a27] hover:bg-[#3a7232] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg flex items-center justify-center transition-colors"
+                      >
+                        <Send size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           ) : (
             /* Empty State */
