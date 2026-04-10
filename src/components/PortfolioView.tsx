@@ -1,32 +1,18 @@
 import { TrendingUp, DollarSign, BarChart3, Building2, Globe, PieChart, Activity } from "lucide-react";
 import { businesses } from "../lib/mockData";
 
-const portfolioItems = [
-  { id: "4", name: "Apex Financial Technologies", acquired: "Mar 2023", cost: "$185M", currentVal: "$215M", moic: "1.16x", irr: "18.4%", status: "Active Hold", sector: "Fintech" },
-  { id: "2", name: "Meridian Health Analytics", acquired: "Aug 2022", cost: "$95M", currentVal: "$130M", moic: "1.37x", irr: "23.1%", status: "Active Hold", sector: "Health Tech" },
-  { id: "6", name: "Pinnacle Defense Contractors", acquired: "Jan 2021", cost: "$290M", currentVal: "$380M", moic: "1.31x", irr: "14.8%", status: "Active Hold", sector: "Defense" },
-];
+const portfolioItems: { id: string; name: string; acquired: string; cost: string; currentVal: string; moic: string; irr: string; status: string; sector: string }[] = [];
 
 const metrics = [
-  { label: "Total Portfolio Value", value: "$725M", delta: "+12.4%", icon: <DollarSign size={20} />, positive: true },
-  { label: "Total Invested", value: "$570M", delta: "3 holdings", icon: <BarChart3 size={20} />, positive: true },
-  { label: "Blended MOIC", value: "1.27x", delta: "+0.06x QoQ", icon: <TrendingUp size={20} />, positive: true },
-  { label: "Blended IRR", value: "18.8%", delta: "+1.2pp YoY", icon: <Activity size={20} />, positive: true },
+  { label: "Total Portfolio Value", value: "$0", delta: "--", icon: <DollarSign size={20} />, positive: true },
+  { label: "Total Invested", value: "$0", delta: "0 holdings", icon: <BarChart3 size={20} />, positive: true },
+  { label: "Blended MOIC", value: "--", delta: "--", icon: <TrendingUp size={20} />, positive: true },
+  { label: "Blended IRR", value: "--", delta: "--", icon: <Activity size={20} />, positive: true },
 ];
 
-const sectorAlloc = [
-  { name: "Defense", pct: 52, color: "#4ade80" },
-  { name: "Health Tech", pct: 18, color: "#34d399" },
-  { name: "Fintech", pct: 30, color: "#86efac" },
-];
+const sectorAlloc: { name: string; pct: number; color: string }[] = [];
 
-const recentActivity = [
-  { date: "Feb 18, 2025", type: "Valuation Update", desc: "Apex Financial Technologies — Q4 2024 mark-to-market", change: "+$8M", positive: true },
-  { date: "Feb 10, 2025", type: "Board Meeting", desc: "Meridian Health Analytics — Quarterly board review", change: "", positive: true },
-  { date: "Jan 30, 2025", type: "Distribution", desc: "Pinnacle Defense Contractors — Q4 dividend", change: "+$4.2M", positive: true },
-  { date: "Jan 22, 2025", type: "New Deal Signed", desc: "Meridian Health — New enterprise contract ($12M TCV)", change: "+$12M", positive: true },
-  { date: "Jan 08, 2025", type: "Valuation Update", desc: "Pinnacle Defense — DoD contract renewal impact", change: "+$22M", positive: true },
-];
+const recentActivity: { date: string; type: string; desc: string; change: string; positive: boolean }[] = [];
 
 export default function PortfolioView() {
   return (
@@ -35,7 +21,7 @@ export default function PortfolioView() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-white text-2xl font-bold">Portfolio Overview</h1>
-          <p className="text-gray-500 text-sm mt-1">Last updated: Feb 20, 2025 · Q4 2024</p>
+          <p className="text-gray-500 text-sm mt-1">No holdings yet</p>
         </div>
         <div className="flex gap-3">
           <button className="flex items-center gap-2 bg-[#141a14] border border-[#1e2e1e] text-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-[#1a241a] transition-colors">
@@ -141,19 +127,7 @@ export default function PortfolioView() {
           <div className="mt-6 pt-4 border-t border-[#1e2e1e]">
             <h3 className="text-gray-400 text-xs uppercase tracking-wider mb-3">Geography</h3>
             <div className="space-y-2">
-              {[
-                { region: "United States", pct: 88 },
-                { region: "Canada", pct: 8 },
-                { region: "UK / Europe", pct: 4 },
-              ].map(g => (
-                <div key={g.region} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Globe size={12} className="text-gray-600" />
-                    <span className="text-gray-400 text-xs">{g.region}</span>
-                  </div>
-                  <span className="text-gray-300 text-xs font-medium">{g.pct}%</span>
-                </div>
-              ))}
+              <p className="text-gray-500 text-xs">No data available</p>
             </div>
           </div>
         </div>
