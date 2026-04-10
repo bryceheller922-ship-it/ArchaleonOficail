@@ -228,20 +228,41 @@ export default function MessagesView({ pendingConvoId, clearPendingConvo }: Mess
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => alert("Voice calls coming soon!")}
+                    onClick={() => {
+                      if (activeConvo && currentUser && userProfile) {
+                        const initials = userProfile.displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                        sendMessageToFirestore(activeConvo.id, currentUser.uid, userProfile.displayName, initials,
+                          "I'd like to schedule a phone call. When works for you?"
+                        ).catch(() => {});
+                      }
+                    }}
                     className="p-2 text-gray-500 hover:text-gray-300 hover:bg-[#1a241a] rounded-lg transition-colors"
+                    title="Request a call"
                   >
                     <Phone size={16} />
                   </button>
                   <button
-                    onClick={() => alert("Video calls coming soon!")}
+                    onClick={() => {
+                      if (activeConvo && currentUser && userProfile) {
+                        const initials = userProfile.displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                        sendMessageToFirestore(activeConvo.id, currentUser.uid, userProfile.displayName, initials,
+                          "I'd like to schedule a video meeting. When works for you?"
+                        ).catch(() => {});
+                      }
+                    }}
                     className="p-2 text-gray-500 hover:text-gray-300 hover:bg-[#1a241a] rounded-lg transition-colors"
+                    title="Request a video meeting"
                   >
                     <Video size={16} />
                   </button>
                   <button
-                    onClick={() => alert("More options coming soon!")}
+                    onClick={() => {
+                      if (activeConvo?.businessName) {
+                        alert(`Regarding: ${activeConvo.businessName}`);
+                      }
+                    }}
                     className="p-2 text-gray-500 hover:text-gray-300 hover:bg-[#1a241a] rounded-lg transition-colors"
+                    title="View deal info"
                   >
                     <MoreVertical size={16} />
                   </button>

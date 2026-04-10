@@ -1,6 +1,7 @@
 import {
   collection, doc, addDoc, getDocs, onSnapshot,
-  query, where, orderBy, updateDoc, serverTimestamp
+  query, where, orderBy, updateDoc, serverTimestamp,
+  setDoc, deleteDoc
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "./firebase";
@@ -234,9 +235,52 @@ export function subscribeToUsers(
   );
 }
 
-// --------------- Fire-and-forget profile write ---------------
-export function saveUserProfile(uid: string, profile: Record<string, unknown>) {
-  // Don't await - just try to write and move on
-  const { setDoc: sd } = { setDoc: () => import("firebase/firestore").then(m => m.setDoc(doc(db, "users", uid), profile)) };
-  sd().catch(() => {});
+// --------------- Profile ---------------
+
+export async function updateUserProfile(uid: string, data: Record<string, unknown>) {
+  try {
+    await withTimeout(setDoc(doc(db, "users", uid), data, { merge: true }));
+  } catch {
+    console.warn("Profile update may have timed out");
+  }
 }
+
+// --------------- Portfolio Holdings ---------------
+
+export interface Holding {
+  id: string;
+  name: string;
+  sector: string;
+  acquired: string;
+  costBasis: number;
+  currentValue: number;
+  notes: string;
+}
+
+export function subscribeToHoldings(
+  userId: string,
+  callback: (holdings: Holding[]) => void
+) {
+  return onSnapshot(
+    collection(db, "users", userId, "holdings"),
+    (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Holding)));
+    },
+    () => callback([])
+  );
+}
+
+export async function addHolding(userId: string, data: Omit<Holding, "id">) {
+  await withTimeout(addDoc(collection(db, "users", userId, "holdings"), data));
+}
+
+export async function deleteHolding(userId: string, holdingId: string) {
+  await withTimeout(deleteDoc(doc(db, "users", userId, "holdings", holdingId)));
+}
+
+export async function updateBudget(userId: string, budget: number) {
+  try {
+    await withTimeout(setDoc(doc(db, "users", userId), { budget }, { merge: true }));
+  } catch {}
+}
+
