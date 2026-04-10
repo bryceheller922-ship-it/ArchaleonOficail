@@ -29,6 +29,7 @@ export interface Business {
   dealType: string;
   imageUrls?: string[];
   createdBy?: string;
+  listingType?: "For Sale" | "For Networking";
 }
 
 export interface Professional {

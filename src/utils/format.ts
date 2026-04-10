@@ -1,26 +1,21 @@
-// Format a raw string into a dollar display: "$1,234,567"
+// Format a number string with dollar sign and commas as the user types
 export function formatDollar(raw: string): string {
-  // Strip everything except digits and dots
-  const cleaned = raw.replace(/[^0-9.]/g, "");
-  if (!cleaned) return "";
-
-  const parts = cleaned.split(".");
-  const intPart = parts[0];
-  const decPart = parts.length > 1 ? `.${parts[1].slice(0, 2)}` : "";
-
-  // Add commas
-  const withCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return `$${withCommas}${decPart}`;
+  // Remove everything except digits
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  // Add commas to digits
+  const withCommas = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return "$" + withCommas;
 }
 
-// Format a raw string into a number with commas: "1,234,567"
+// Format a number string with commas (no dollar sign)
 export function formatNumber(raw: string): string {
-  const cleaned = raw.replace(/[^0-9]/g, "");
-  if (!cleaned) return "";
-  return cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-// Parse a formatted dollar/number string back to a raw number string (for storage)
+// Strip formatting to get raw number string for storage/parsing
 export function parseFormatted(formatted: string): string {
-  return formatted.replace(/[$,]/g, "");
+  return formatted.replace(/[^0-9.]/g, "");
 }

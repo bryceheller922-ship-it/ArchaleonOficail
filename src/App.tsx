@@ -86,6 +86,7 @@ function AppRoutes() {
 
       {/* Dedicated pages */}
       <Route path="/create-listing" element={<AppLayout><CreateListingPage /></AppLayout>} />
+      <Route path="/edit-listing/:id" element={<AppLayout><CreateListingPage /></AppLayout>} />
       <Route path="/profile" element={<AppLayout><ProfilePage /></AppLayout>} />
 
       {/* Catch-all */}

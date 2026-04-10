@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { MapPin, TrendingUp, Users, Calendar, ExternalLink, Building2, ChevronRight, ChevronLeft, X, MessageSquare, FileText, Image as ImageIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { MapPin, TrendingUp, Users, Calendar, ExternalLink, Building2, ChevronRight, ChevronLeft, X, MessageSquare, FileText, Image as ImageIcon, Pencil, Trash2, ShoppingCart, Handshake } from "lucide-react";
 import { Business } from "../lib/mockData";
+import { useAuth } from "../context/AuthContext";
+import { deleteListing } from "../lib/firestore";
 
 interface BusinessCardProps {
   business: Business;
@@ -72,6 +75,11 @@ export default function BusinessCard({ business, isSelected, onClick }: Business
             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${sectorColor}`}>
               {business.sector}
             </span>
+            {business.listingType && (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${business.listingType === "For Sale" ? "bg-amber-400/10 text-amber-400" : "bg-blue-400/10 text-blue-400"}`}>
+                {business.listingType}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -122,6 +130,9 @@ export function BusinessDetailModal({ business, onClose, onMessageOwner }: {
   onClose: () => void;
   onMessageOwner: () => void;
 }) {
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const isOwner = currentUser && business.createdBy === currentUser.uid;
   const status = statusConfig[business.status] || statusConfig["Active"];
   const growthPositive = business.yoyGrowth.startsWith("+");
   const images = business.imageUrls || [];
@@ -276,19 +287,49 @@ export function BusinessDetailModal({ business, onClose, onMessageOwner }: {
         </div>
 
         {/* CTA Buttons - fixed at bottom */}
-        <div className="flex gap-3 p-4 border-t border-[#1e2e1e] flex-shrink-0">
-          <button
-            onClick={onMessageOwner}
-            className="flex-1 flex items-center justify-center gap-2 bg-[#2d5a27] hover:bg-[#3a7232] text-white font-semibold py-3 rounded-xl transition-colors text-sm"
-          >
-            <FileText size={16} /> Request CIM / NDA
-          </button>
-          <button
-            onClick={onMessageOwner}
-            className="flex-1 flex items-center justify-center gap-2 bg-[#141a14] hover:bg-[#1a241a] border border-[#2a3a2a] text-gray-300 font-semibold py-3 rounded-xl transition-colors text-sm"
-          >
-            <MessageSquare size={16} /> Message Owner
-          </button>
+        <div className="flex flex-col gap-2 p-4 border-t border-[#1e2e1e] flex-shrink-0">
+          {/* Listing type badge */}
+          {business.listingType && (
+            <div className="flex items-center justify-center gap-2 py-1.5">
+              {business.listingType === "For Sale" ? (
+                <span className="flex items-center gap-1.5 text-amber-400 text-xs font-medium"><ShoppingCart size={12} /> This business is for sale</span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-blue-400 text-xs font-medium"><Handshake size={12} /> Listed for networking</span>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button onClick={onMessageOwner}
+              className="flex-1 flex items-center justify-center gap-2 bg-[#2d5a27] hover:bg-[#3a7232] text-white font-semibold py-3 rounded-xl text-sm">
+              <FileText size={16} /> Request CIM / NDA
+            </button>
+            <button onClick={onMessageOwner}
+              className="flex-1 flex items-center justify-center gap-2 bg-[#141a14] hover:bg-[#1a241a] border border-[#2a3a2a] text-gray-300 font-semibold py-3 rounded-xl text-sm">
+              <MessageSquare size={16} /> Message Owner
+            </button>
+          </div>
+
+          {/* Owner actions */}
+          {isOwner && (
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => { onClose(); navigate(`/edit-listing/${business.id}`); }}
+                className="flex-1 flex items-center justify-center gap-2 bg-[#1a241a] hover:bg-[#1e2e1e] border border-[#2a3a2a] text-gray-300 font-semibold py-2.5 rounded-xl text-sm">
+                <Pencil size={14} /> Edit Listing
+              </button>
+              <button
+                onClick={async () => {
+                  if (confirm("Are you sure you want to delete this listing? This cannot be undone.")) {
+                    await deleteListing(business.id);
+                    onClose();
+                  }
+                }}
+                className="flex items-center justify-center gap-2 bg-red-900/30 hover:bg-red-900/50 border border-red-700/30 text-red-400 font-semibold py-2.5 px-4 rounded-xl text-sm">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

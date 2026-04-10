@@ -47,25 +47,9 @@ export async function geocodeAddress(
 // LISTINGS — stored in Supabase (persistent, public)
 // =============================================
 
-// Upload images to Supabase Storage
-async function uploadImagesToSupabase(files: File[], listingId: string): Promise<string[]> {
-  const urls: string[] = [];
-  for (const file of files) {
-    const path = `listings/${listingId}/${Date.now()}_${file.name}`;
-    const { error } = await supabase.storage.from("listing-images").upload(path, file);
-    if (!error) {
-      const { data } = supabase.storage.from("listing-images").getPublicUrl(path);
-      if (data?.publicUrl) urls.push(data.publicUrl);
-    } else {
-      console.warn("Image upload failed:", error.message);
-    }
-  }
-  return urls;
-}
-
 export async function createListing(
   data: Omit<Business, "id">,
-  images: File[]
+  _images?: File[]
 ): Promise<string> {
   // Insert listing into Supabase
   const row = {
@@ -96,8 +80,9 @@ export async function createListing(
     listed_at: data.listedAt,
     website: data.website,
     deal_type: data.dealType,
-    image_urls: [] as string[],
+    image_urls: (data.imageUrls || []) as string[],
     created_by: data.createdBy || "",
+    listing_type: data.listingType || "For Sale",
   };
 
   const { data: inserted, error } = await supabase
@@ -107,17 +92,35 @@ export async function createListing(
     .single();
 
   if (error) throw new Error(`Failed to create listing: ${error.message}`);
-  const listingId = inserted.id;
+  return inserted.id;
+}
 
-  // Upload images
-  if (images.length > 0) {
-    const imageUrls = await uploadImagesToSupabase(images, listingId);
-    if (imageUrls.length > 0) {
-      await supabase.from("listings").update({ image_urls: imageUrls }).eq("id", listingId);
-    }
-  }
+// Get a single listing by ID
+export async function getListingById(id: string): Promise<Business | null> {
+  const { data, error } = await supabase.from("listings").select("*").eq("id", id).single();
+  if (error || !data) return null;
+  return rowToBusiness(data);
+}
 
-  return listingId;
+// Update an existing listing
+export async function updateListing(id: string, data: Omit<Business, "id">) {
+  const { error } = await supabase.from("listings").update({
+    name: data.name, industry: data.industry, sector: data.sector,
+    description: data.description, revenue: data.revenue, ebitda: data.ebitda,
+    valuation: data.valuation, employees: data.employees, founded: data.founded,
+    location: data.location, city: data.city, state: data.state, country: data.country,
+    lat: data.lat, lng: data.lng, logo: data.logo, tags: data.tags, status: data.status,
+    asking_price: data.askingPrice, gross_margin: data.grossMargin, yoy_growth: data.yoyGrowth,
+    owner_name: data.ownerName, owner_title: data.ownerTitle, owner_avatar: data.ownerAvatar,
+    website: data.website, deal_type: data.dealType,
+    image_urls: data.imageUrls || [], listing_type: data.listingType || "For Sale",
+  }).eq("id", id);
+  if (error) throw new Error(`Failed to update listing: ${error.message}`);
+}
+
+// Delete a listing
+export async function deleteListing(id: string) {
+  await supabase.from("listings").delete().eq("id", id);
 }
 
 // Map Supabase row to Business interface
@@ -153,6 +156,7 @@ function rowToBusiness(row: Record<string, unknown>): Business {
     dealType: String(row.deal_type || ""),
     imageUrls: (row.image_urls as string[]) || [],
     createdBy: String(row.created_by || ""),
+    listingType: (row.listing_type as Business["listingType"]) || "For Sale",
   };
 }
 
