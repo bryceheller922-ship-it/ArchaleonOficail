@@ -142,7 +142,7 @@ export default function CreateListingPage() {
       if (editId) {
         await updateListing(editId, listingData);
       } else {
-        await createListing(listingData, []);  // images already in listingData as base64
+        await createListing(listingData);
       }
 
       clearTimeout(timeout);

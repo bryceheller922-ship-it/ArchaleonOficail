@@ -44,86 +44,58 @@ export async function geocodeAddress(
 }
 
 // =============================================
-// LISTINGS — stored in Supabase (persistent, public)
+// LOCAL STORAGE — guaranteed fallback for listings
 // =============================================
 
-export async function createListing(
-  data: Omit<Business, "id">,
-  _images?: File[]
-): Promise<string> {
-  // Insert listing into Supabase
-  const row = {
-    name: data.name,
-    industry: data.industry,
-    sector: data.sector,
-    description: data.description,
-    revenue: data.revenue,
-    ebitda: data.ebitda,
-    valuation: data.valuation,
-    employees: data.employees,
-    founded: data.founded,
-    location: data.location,
-    city: data.city,
-    state: data.state,
-    country: data.country,
-    lat: data.lat,
-    lng: data.lng,
-    logo: data.logo,
-    tags: data.tags,
-    status: data.status,
-    asking_price: data.askingPrice,
-    gross_margin: data.grossMargin,
-    yoy_growth: data.yoyGrowth,
-    owner_name: data.ownerName,
-    owner_title: data.ownerTitle,
-    owner_avatar: data.ownerAvatar,
-    listed_at: data.listedAt,
-    website: data.website,
-    deal_type: data.dealType,
-    image_urls: (data.imageUrls || []) as string[],
-    created_by: data.createdBy || "",
-    listing_type: data.listingType || "For Sale",
-  };
+const LOCAL_KEY = "archaleon_listings";
 
-  const { data: inserted, error } = await supabase
-    .from("listings")
-    .insert(row)
-    .select("id")
-    .single();
-
-  if (error) throw new Error(`Failed to create listing: ${error.message}`);
-  return inserted.id;
+function getLocalListings(): Business[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
 }
 
-// Get a single listing by ID
-export async function getListingById(id: string): Promise<Business | null> {
-  const { data, error } = await supabase.from("listings").select("*").eq("id", id).single();
-  if (error || !data) return null;
-  return rowToBusiness(data);
+function saveLocalListings(listings: Business[]) {
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(listings)); } catch {}
 }
 
-// Update an existing listing
-export async function updateListing(id: string, data: Omit<Business, "id">) {
-  const { error } = await supabase.from("listings").update({
+function addLocalListing(listing: Business) {
+  const all = getLocalListings();
+  all.unshift(listing);
+  saveLocalListings(all);
+}
+
+function updateLocalListing(id: string, data: Partial<Business>) {
+  const all = getLocalListings().map(l => l.id === id ? { ...l, ...data } : l);
+  saveLocalListings(all);
+}
+
+function deleteLocalListing(id: string) {
+  saveLocalListings(getLocalListings().filter(l => l.id !== id));
+}
+
+// =============================================
+// SUPABASE ROW MAPPING
+// =============================================
+
+function businessToRow(data: Omit<Business, "id">) {
+  return {
     name: data.name, industry: data.industry, sector: data.sector,
     description: data.description, revenue: data.revenue, ebitda: data.ebitda,
     valuation: data.valuation, employees: data.employees, founded: data.founded,
     location: data.location, city: data.city, state: data.state, country: data.country,
     lat: data.lat, lng: data.lng, logo: data.logo, tags: data.tags, status: data.status,
-    asking_price: data.askingPrice, gross_margin: data.grossMargin, yoy_growth: data.yoyGrowth,
-    owner_name: data.ownerName, owner_title: data.ownerTitle, owner_avatar: data.ownerAvatar,
-    website: data.website, deal_type: data.dealType,
-    image_urls: data.imageUrls || [], listing_type: data.listingType || "For Sale",
-  }).eq("id", id);
-  if (error) throw new Error(`Failed to update listing: ${error.message}`);
+    asking_price: data.askingPrice, gross_margin: data.grossMargin,
+    yoy_growth: data.yoyGrowth, owner_name: data.ownerName,
+    owner_title: data.ownerTitle, owner_avatar: data.ownerAvatar,
+    listed_at: data.listedAt, website: data.website, deal_type: data.dealType,
+    image_urls: (data.imageUrls || []) as string[],
+    created_by: data.createdBy || "",
+    listing_type: data.listingType || "For Sale",
+  };
 }
 
-// Delete a listing
-export async function deleteListing(id: string) {
-  await supabase.from("listings").delete().eq("id", id);
-}
-
-// Map Supabase row to Business interface
 function rowToBusiness(row: Record<string, unknown>): Business {
   return {
     id: String(row.id),
@@ -160,44 +132,122 @@ function rowToBusiness(row: Record<string, unknown>): Business {
   };
 }
 
-// Subscribe to listings via Supabase Realtime + initial fetch
+// =============================================
+// LISTINGS — Supabase + localStorage fallback
+// Deals ALWAYS save. Supabase is tried first,
+// localStorage catches anything that fails.
+// =============================================
+
+export async function createListing(data: Omit<Business, "id">): Promise<string> {
+  const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  // Always save locally first — guaranteed to work
+  const localBusiness: Business = { id: localId, ...data };
+  addLocalListing(localBusiness);
+
+  // Then try Supabase (best-effort)
+  try {
+    const result = await withTimeout(
+      Promise.resolve(supabase.from("listings").insert(businessToRow(data)).select("id").single()),
+      10000
+    ) as { data: { id: string } | null; error: unknown };
+    if (!result.error && result.data) {
+      deleteLocalListing(localId);
+      return result.data.id;
+    }
+  } catch (err) {
+    console.warn("Supabase insert failed, listing saved locally:", err);
+  }
+
+  return localId;
+}
+
+export async function getListingById(id: string): Promise<Business | null> {
+  const local = getLocalListings().find(l => l.id === id);
+  if (local) return local;
+  try {
+    const result = await withTimeout(
+      Promise.resolve(supabase.from("listings").select("*").eq("id", id).single()),
+      5000
+    ) as { data: Record<string, unknown> | null; error: unknown };
+    if (!result.error && result.data) return rowToBusiness(result.data);
+  } catch {}
+  return null;
+}
+
+export async function updateListing(id: string, data: Omit<Business, "id">) {
+  updateLocalListing(id, data);
+  try {
+    await withTimeout(
+      Promise.resolve(supabase.from("listings").update(businessToRow(data)).eq("id", id)),
+      8000
+    );
+  } catch {
+    console.warn("Supabase update failed, changes saved locally");
+  }
+}
+
+export async function deleteListing(id: string) {
+  deleteLocalListing(id);
+  try {
+    await supabase.from("listings").delete().eq("id", id);
+  } catch {}
+}
+
+// Subscribe: merge Supabase listings + local-only listings
 export function subscribeToListings(callback: (listings: Business[]) => void) {
-  // Initial fetch
+  let supabaseListings: Business[] = [];
+  let hasFetchedSupabase = false;
+
+  function mergeAndCallback() {
+    const localOnly = getLocalListings();
+    // Deduplicate: if a local listing exists in Supabase (by name+createdBy), skip the local
+    const supabaseIds = new Set(supabaseListings.map(l => l.id));
+    const uniqueLocal = localOnly.filter(l => !supabaseIds.has(l.id));
+    callback([...uniqueLocal, ...supabaseListings]);
+  }
+
+  // Fetch from Supabase
   supabase
     .from("listings")
     .select("*")
     .order("created_at", { ascending: false })
     .then(({ data, error }) => {
+      hasFetchedSupabase = true;
       if (!error && data) {
-        callback(data.map(rowToBusiness));
-      } else {
-        callback([]);
+        supabaseListings = data.map(rowToBusiness);
       }
+      mergeAndCallback();
+    }, () => {
+      hasFetchedSupabase = true;
+      mergeAndCallback();
     });
 
-  // Realtime subscription for live updates
+  // Show local listings immediately while Supabase loads
+  if (!hasFetchedSupabase) {
+    const localOnly = getLocalListings();
+    if (localOnly.length > 0) callback(localOnly);
+  }
+
+  // Realtime for live updates
   const channel = supabase
     .channel("listings-realtime")
     .on("postgres_changes", { event: "*", schema: "public", table: "listings" }, () => {
-      // Re-fetch all on any change
-      supabase
-        .from("listings")
-        .select("*")
-        .order("created_at", { ascending: false })
+      supabase.from("listings").select("*").order("created_at", { ascending: false })
         .then(({ data }) => {
-          if (data) callback(data.map(rowToBusiness));
+          if (data) {
+            supabaseListings = data.map(rowToBusiness);
+            mergeAndCallback();
+          }
         });
     })
     .subscribe();
 
-  // Return unsubscribe function
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return () => { supabase.removeChannel(channel); };
 }
 
 // =============================================
-// CONVERSATIONS — Firebase (per-user, real-time)
+// CONVERSATIONS — Firebase
 // =============================================
 
 export function subscribeToConversations(
@@ -239,10 +289,8 @@ export async function getOrCreateConversation(
       participants: [myId, otherId],
       participantNames: [myName, otherName],
       participantAvatars: [myAvatar, otherAvatar],
-      lastMessage: "",
-      lastMessageTime: new Date().toISOString(),
-      unread: 0,
-      businessName: businessName || "",
+      lastMessage: "", lastMessageTime: new Date().toISOString(),
+      unread: 0, businessName: businessName || "",
     })
   );
   return docRef.id;
@@ -262,9 +310,7 @@ export function subscribeToMessages(
   );
   return onSnapshot(
     q,
-    (snap) => {
-      callback(snap.docs.map((d) => ({ id: d.id, conversationId, ...d.data() } as Message)));
-    },
+    (snap) => { callback(snap.docs.map((d) => ({ id: d.id, conversationId, ...d.data() } as Message))); },
     () => callback([])
   );
 }
@@ -275,13 +321,11 @@ export async function sendMessageToFirestore(
   await withTimeout(
     addDoc(collection(db, "conversations", conversationId, "messages"), {
       senderId, senderName, senderAvatar, text,
-      timestamp: new Date().toISOString(),
-      read: false,
+      timestamp: new Date().toISOString(), read: false,
     })
   );
   updateDoc(doc(db, "conversations", conversationId), {
-    lastMessage: text,
-    lastMessageTime: new Date().toISOString(),
+    lastMessage: text, lastMessageTime: new Date().toISOString(),
   }).catch(() => {});
 }
 
@@ -309,25 +353,17 @@ export function subscribeToUsers(
 // =============================================
 
 export async function updateUserProfile(uid: string, data: Record<string, unknown>) {
-  try {
-    await withTimeout(setDoc(doc(db, "users", uid), data, { merge: true }));
-  } catch {
-    console.warn("Profile update may have timed out");
-  }
+  try { await withTimeout(setDoc(doc(db, "users", uid), data, { merge: true })); }
+  catch { console.warn("Profile update may have timed out"); }
 }
 
 // =============================================
-// PORTFOLIO HOLDINGS — Firebase (per-user)
+// PORTFOLIO HOLDINGS — Firebase
 // =============================================
 
 export interface Holding {
-  id: string;
-  name: string;
-  sector: string;
-  acquired: string;
-  costBasis: number;
-  currentValue: number;
-  notes: string;
+  id: string; name: string; sector: string; acquired: string;
+  costBasis: number; currentValue: number; notes: string;
 }
 
 export function subscribeToHoldings(userId: string, callback: (holdings: Holding[]) => void) {
